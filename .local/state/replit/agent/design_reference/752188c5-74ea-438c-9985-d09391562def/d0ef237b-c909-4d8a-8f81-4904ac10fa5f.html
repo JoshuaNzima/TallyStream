@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parallel Tally Center System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: {
+                    'inter': ['Inter', 'sans-serif']
+                },
+                colors: {
+                    primary: {
+                        50: '#e3f2fd',
+                        500: '#1565c0',
+                        600: '#1e88e5',
+                        700: '#1976d2'
+                    },
+                    secondary: {
+                        50: '#e8f5e8',
+                        500: '#2e7d32',
+                        600: '#388e3c'
+                    },
+                    accent: {
+                        500: '#ff6f00',
+                        600: '#f57c00'
+                    },
+                    status: {
+                        verified: '#4caf50',
+                        pending: '#ff9800',
+                        flagged: '#f44336'
+                    }
+                }
+            }
+        }
+    };
+    </script>
+</head>
+<body class="font-inter bg-gray-50">
+    <!-- @COMPONENT: LoginScreen -->
+    <div id="loginScreen" class="min-h-screen bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-md p-8">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-vote-yea text-white text-2xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">Parallel Tally Center</h1>
+                <p class="text-gray-600">Secure Election Management System</p>
+            </div>
+            
+            <form class="space-y-6" data-event="submit:handleLogin">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                    <input type="email" id="email" name="email" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+                
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <input type="password" id="password" name="password" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" id="remember" name="remember" 
+                           class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded">
+                    <label for="remember" class="ml-2 block text-sm text-gray-700">Remember me</label>
+                </div>
+                
+                <button type="submit" 
+                        class="w-full bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200">
+                    Sign In
+                </button>
+            </form>
+            
+            <div class="mt-6 text-center">
+                <a href="#" class="text-sm text-primary-500 hover:text-primary-600">Forgot your password?</a>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: LoginScreen -->
+
+    <!-- @COMPONENT: MainApplication -->
+    <div id="mainApp" class="hidden min-h-screen bg-gray-50">
+        <!-- @COMPONENT: Navigation -->
+        <nav class="bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-vote-yea text-white text-sm"></i>
+                        </div>
+                        <h1 class="text-xl font-semibold text-gray-900">PTC System</h1>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <!-- Real-time Status Indicator -->
+                        <div class="flex items-center space-x-2">
+                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                            <span class="text-sm text-gray-600">Live</span>
+                        </div>
+                        
+                        <!-- User Menu -->
+                        <div class="relative">
+                            <button class="flex items-center space-x-2 text-gray-700 hover:text-gray-900">
+                                <img class="w-8 h-8 rounded-full bg-primary-100" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=32&h=32" alt="User avatar">
+                                <span class="text-sm font-medium" data-bind="user.name">John Supervisor</span>
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <!-- @END_COMPONENT: Navigation -->
+
+        <div class="flex">
+            <!-- @COMPONENT: Sidebar -->
+            <aside class="w-64 bg-white shadow-sm h-screen">
+                <div class="p-4">
+                    <div class="space-y-1">
+                        <a href="#" class="bg-primary-50 text-primary-700 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                            <i class="fas fa-tachometer-alt mr-3 text-primary-500"></i>
+                            Dashboard
+                        </a>
+                        <a href="#" class="text-gray-700 hover:bg-gray-50 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                            <i class="fas fa-plus-circle mr-3 text-gray-400"></i>
+                            Submit Results
+                        </a>
+                        <a href="#" class="text-gray-700 hover:bg-gray-50 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                            <i class="fas fa-check-circle mr-3 text-gray-400"></i>
+                            Verify Results
+                        </a>
+                        <a href="#" class="text-gray-700 hover:bg-gray-50 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                            <i class="fas fa-chart-bar mr-3 text-gray-400"></i>
+                            Reports
+                        </a>
+                        <a href="#" class="text-gray-700 hover:bg-gray-50 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                            <i class="fas fa-users mr-3 text-gray-400"></i>
+                            User Management
+                        </a>
+                        <a href="#" class="text-gray-700 hover:bg-gray-50 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                            <i class="fas fa-history mr-3 text-gray-400"></i>
+                            Audit Trail
+                        </a>
+                    </div>
+                </div>
+            </aside>
+            <!-- @END_COMPONENT: Sidebar -->
+
+            <!-- @COMPONENT: MainContent -->
+            <main class="flex-1 p-6">
+                <!-- @COMPONENT: DashboardHeader -->
+                <div class="mb-8">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900">Election Dashboard</h2>
+                            <p class="text-gray-600">Real-time election results monitoring</p>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="bg-white px-4 py-2 rounded-lg shadow-sm border">
+                                <div class="text-sm text-gray-500">Last Update</div>
+                                <div class="font-medium" data-bind="lastUpdate">2 minutes ago</div>
+                            </div>
+                            <button class="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+                                <i class="fas fa-download"></i>
+                                <span>Export Report</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: DashboardHeader -->
+
+                <!-- @COMPONENT: StatsOverview -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow-sm p-6 border">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Total Polling Centers</p>
+                                <p class="text-2xl font-bold text-gray-900" data-bind="stats.totalCenters">12,456</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-building text-blue-600"></i>
+                            </div>
+                        </div>
+                        <div class="mt-2 flex items-center text-sm">
+                            <span class="text-green-600 font-medium">100%</span>
+                            <span class="text-gray-500 ml-1">registered</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-sm p-6 border">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Results Received</p>
+                                <p class="text-2xl font-bold text-gray-900" data-bind="stats.resultsReceived">8,234</p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-check-circle text-green-600"></i>
+                            </div>
+                        </div>
+                        <div class="mt-2 flex items-center text-sm">
+                            <span class="text-green-600 font-medium">66.1%</span>
+                            <span class="text-gray-500 ml-1">completion</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-sm p-6 border">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Verified Results</p>
+                                <p class="text-2xl font-bold text-gray-900" data-bind="stats.verified">7,891</p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-shield-alt text-green-600"></i>
+                            </div>
+                        </div>
+                        <div class="mt-2 flex items-center text-sm">
+                            <span class="text-green-600 font-medium">95.8%</span>
+                            <span class="text-gray-500 ml-1">verified</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-sm p-6 border">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Flagged Items</p>
+                                <p class="text-2xl font-bold text-gray-900" data-bind="stats.flagged">23</p>
+                            </div>
+                            <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-flag text-red-600"></i>
+                            </div>
+                        </div>
+                        <div class="mt-2 flex items-center text-sm">
+                            <span class="text-red-600 font-medium">0.3%</span>
+                            <span class="text-gray-500 ml-1">need review</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: StatsOverview -->
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- @COMPONENT: ResultsChart -->
+                    <div class="bg-white rounded-lg shadow-sm border">
+                        <div class="p-6 border-b">
+                            <h3 class="text-lg font-semibold text-gray-900">National Results</h3>
+                            <p class="text-sm text-gray-600">Current leading candidates</p>
+                        </div>
+                        <div class="p-6">
+                            <!-- @FUNCTIONALITY: Implement real-time chart using Chart.js or similar -->
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-4 h-4 bg-blue-500 rounded-full"></div>
+                                        <span class="font-medium">Candidate A</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="font-bold text-lg" data-bind="results.candidateA.votes">2,456,789</div>
+                                        <div class="text-sm text-gray-500" data-bind="results.candidateA.percentage">45.2%</div>
+                                    </div>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-blue-500 h-2 rounded-full" style="width: 45.2%"></div>
+                                </div>
+
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-4 h-4 bg-green-500 rounded-full"></div>
+                                        <span class="font-medium">Candidate B</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="font-bold text-lg" data-bind="results.candidateB.votes">2,123,456</div>
+                                        <div class="text-sm text-gray-500" data-bind="results.candidateB.percentage">39.1%</div>
+                                    </div>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-green-500 h-2 rounded-full" style="width: 39.1%"></div>
+                                </div>
+
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-4 h-4 bg-yellow-500 rounded-full"></div>
+                                        <span class="font-medium">Candidate C</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="font-bold text-lg" data-bind="results.candidateC.votes">851,234</div>
+                                        <div class="text-sm text-gray-500" data-bind="results.candidateC.percentage">15.7%</div>
+                                    </div>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-yellow-500 h-2 rounded-full" style="width: 15.7%"></div>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 pt-6 border-t">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">Total Votes Cast:</span>
+                                    <span class="font-semibold" data-bind="results.totalVotes">5,431,479</span>
+                                </div>
+                                <div class="flex justify-between text-sm mt-1">
+                                    <span class="text-gray-600">Voter Turnout:</span>
+                                    <span class="font-semibold" data-bind="results.turnout">68.4%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_COMPONENT: ResultsChart -->
+
+                    <!-- @COMPONENT: RecentSubmissions -->
+                    <div class="bg-white rounded-lg shadow-sm border">
+                        <div class="p-6 border-b">
+                            <h3 class="text-lg font-semibold text-gray-900">Recent Submissions</h3>
+                            <p class="text-sm text-gray-600">Latest result submissions requiring review</p>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-4">
+                                <!-- @MAP: recentSubmissions.map(submission => ( -->
+                                <div class="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-status-pending rounded-full flex items-center justify-center">
+                                            <i class="fas fa-clock text-white text-xs"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center justify-between">
+                                            <p class="text-sm font-medium text-gray-900" data-bind="submission.centerName">PC-001-Lagos Central</p>
+                                            <span class="text-xs text-gray-500" data-bind="submission.timestamp">2 min ago</span>
+                                        </div>
+                                        <p class="text-sm text-gray-600" data-bind="submission.submittedBy">Submitted by Agent John</p>
+                                        <div class="flex items-center space-x-2 mt-1">
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">
+                                                Pending Verification
+                                            </span>
+                                            <span class="text-xs text-gray-500">WhatsApp + Portal</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-status-flagged rounded-full flex items-center justify-center">
+                                            <i class="fas fa-exclamation-triangle text-white text-xs"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center justify-between">
+                                            <p class="text-sm font-medium text-gray-900" data-bind="submission.centerName">PC-042-Abuja North</p>
+                                            <span class="text-xs text-gray-500" data-bind="submission.timestamp">5 min ago</span>
+                                        </div>
+                                        <p class="text-sm text-gray-600" data-bind="submission.submittedBy">Submitted by Agent Mary</p>
+                                        <div class="flex items-center space-x-2 mt-1">
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">
+                                                Discrepancy Detected
+                                            </span>
+                                            <span class="text-xs text-gray-500">Portal only</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-status-verified rounded-full flex items-center justify-center">
+                                            <i class="fas fa-check text-white text-xs"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center justify-between">
+                                            <p class="text-sm font-medium text-gray-900" data-bind="submission.centerName">PC-089-Kano West</p>
+                                            <span class="text-xs text-gray-500" data-bind="submission.timestamp">8 min ago</span>
+                                        </div>
+                                        <p class="text-sm text-gray-600" data-bind="submission.submittedBy">Verified by Supervisor Sarah</p>
+                                        <div class="flex items-center space-x-2 mt-1">
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                                Verified & Approved
+                                            </span>
+                                            <span class="text-xs text-gray-500">Both channels</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                            </div>
+
+                            <div class="mt-4">
+                                <button class="w-full text-center py-2 text-sm text-primary-600 hover:text-primary-700 border border-primary-200 rounded-lg hover:bg-primary-50">
+                                    View All Submissions
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_COMPONENT: RecentSubmissions -->
+                </div>
+
+                <!-- @COMPONENT: ResultSubmissionForm -->
+                <div class="mt-8 bg-white rounded-lg shadow-sm border">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-semibold text-gray-900">Submit New Results</h3>
+                        <p class="text-sm text-gray-600">Enter polling center results and upload verification documents</p>
+                    </div>
+                    <div class="p-6">
+                        <form class="space-y-6" data-event="submit:handleResultSubmission">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="pollingCenter" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Polling Center Code
+                                    </label>
+                                    <input type="text" id="pollingCenter" name="pollingCenter" required
+                                           placeholder="e.g., PC-001-Lagos-Central"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                </div>
+                                
+                                <div>
+                                    <label for="constituency" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Constituency
+                                    </label>
+                                    <select id="constituency" name="constituency" required
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                        <option value="">Select Constituency</option>
+                                        <option value="lagos-central">Lagos Central</option>
+                                        <option value="abuja-north">Abuja North</option>
+                                        <option value="kano-west">Kano West</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="border rounded-lg p-4">
+                                <h4 class="text-md font-medium text-gray-900 mb-4">Candidate Results</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Candidate A Votes</label>
+                                        <input type="number" name="candidateA" min="0" required
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Candidate B Votes</label>
+                                        <input type="number" name="candidateB" min="0" required
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Candidate C Votes</label>
+                                        <input type="number" name="candidateC" min="0" required
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                    </div>
+                                </div>
+                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Invalid Votes</label>
+                                        <input type="number" name="invalidVotes" min="0" required
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Total Registered Voters</label>
+                                        <input type="number" name="registeredVoters" min="0" required
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- @COMPONENT: FileUpload -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Upload Result Sheet Photos
+                                </label>
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary-400 transition-colors">
+                                    <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-4"></i>
+                                    <p class="text-sm text-gray-600 mb-2">
+                                        <span class="font-medium text-primary-600 hover:text-primary-500 cursor-pointer">
+                                            Click to upload
+                                        </span> 
+                                        or drag and drop
+                                    </p>
+                                    <p class="text-xs text-gray-500">PNG, JPG, PDF up to 10MB each</p>
+                                    <input type="file" multiple accept="image/*,.pdf" class="hidden" data-implementation="File upload with preview and validation">
+                                </div>
+                            </div>
+                            <!-- @END_COMPONENT: FileUpload -->
+
+                            <div>
+                                <label for="comments" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Additional Comments
+                                </label>
+                                <textarea id="comments" name="comments" rows="3" 
+                                         placeholder="Any observations or issues during the voting process..."
+                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"></textarea>
+                            </div>
+
+                            <div class="flex items-center space-x-4">
+                                <button type="submit" 
+                                        class="bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200">
+                                    <i class="fas fa-paper-plane mr-2"></i>
+                                    Submit Results
+                                </button>
+                                <button type="button" 
+                                        class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-6 rounded-lg transition-colors duration-200">
+                                    Save as Draft
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: ResultSubmissionForm -->
+
+                <!-- @COMPONENT: VerificationInterface -->
+                <div class="mt-8 bg-white rounded-lg shadow-sm border">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-semibold text-gray-900">Verification Queue</h3>
+                        <p class="text-sm text-gray-600">Review and verify submitted results</p>
+                    </div>
+                    <div class="p-6">
+                        <div class="space-y-4">
+                            <!-- @MAP: verificationQueue.map(item => ( -->
+                            <div class="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1">
+                                        <div class="flex items-center space-x-3 mb-2">
+                                            <h4 class="font-medium text-gray-900" data-bind="item.centerCode">PC-001-Lagos-Central</h4>
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">
+                                                Pending Review
+                                            </span>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <p class="text-gray-600 mb-1">WhatsApp Submission:</p>
+                                                <div class="bg-gray-100 p-2 rounded">
+                                                    <p>A: <span data-bind="item.whatsapp.candidateA">1,234</span> | B: <span data-bind="item.whatsapp.candidateB">987</span> | C: <span data-bind="item.whatsapp.candidateC">456</span></p>
+                                                    <p class="text-xs text-gray-500 mt-1">Submitted by Agent John - 5 min ago</p>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p class="text-gray-600 mb-1">Portal Submission:</p>
+                                                <div class="bg-gray-100 p-2 rounded">
+                                                    <p>A: <span data-bind="item.portal.candidateA">1,234</span> | B: <span data-bind="item.portal.candidateB">987</span> | C: <span data-bind="item.portal.candidateC">456</span></p>
+                                                    <p class="text-xs text-gray-500 mt-1">Submitted by Agent Mary - 3 min ago</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Status indicator for match/mismatch -->
+                                        <div class="mt-3 flex items-center space-x-2">
+                                            <div class="flex items-center space-x-1">
+                                                <i class="fas fa-check-circle text-green-500"></i>
+                                                <span class="text-sm text-green-700">Results Match</span>
+                                            </div>
+                                            <div class="flex items-center space-x-1">
+                                                <i class="fas fa-image text-blue-500"></i>
+                                                <span class="text-sm text-blue-700">2 Photos Attached</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flex-shrink-0 ml-4">
+                                        <div class="flex flex-col space-y-2">
+                                            <button class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                                                <i class="fas fa-check mr-1"></i>
+                                                Approve
+                                            </button>
+                                            <button class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                                                <i class="fas fa-times mr-1"></i>
+                                                Reject
+                                            </button>
+                                            <button class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                                                <i class="fas fa-eye mr-1"></i>
+                                                Review
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- @END_MAP )) -->
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: VerificationInterface -->
+            </main>
+            <!-- @END_COMPONENT: MainContent -->
+        </div>
+    </div>
+    <!-- @END_COMPONENT: MainApplication -->
+
+    <!-- @COMPONENT: MobileResponsiveView -->
+    <style>
+        @media (max-width: 768px) {
+            .desktop-sidebar {
+                display: none;
+            }
+            .mobile-nav {
+                display: block;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+    <!-- @END_COMPONENT: MobileResponsiveView -->
+
+    <script>
+        // TODO: Implement real-time WebSocket connections for live updates
+        // TODO: Implement form validation and submission handlers
+        // TODO: Implement file upload functionality with progress indicators
+        // TODO: Implement authentication and role-based access control
+        // TODO: Implement data fetching from Laravel backend APIs
+        // TODO: Implement WhatsApp Bot integration endpoints
+        
+        (function() {
+            // Simple view switching for demo purposes
+            let currentView = 'login';
+            
+            function showLogin() {
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('mainApp').classList.add('hidden');
+            }
+            
+            function showMainApp() {
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+            }
+            
+            // Auto-switch to main app after 3 seconds for demo
+            setTimeout(() => {
+                showMainApp();
+            }, 3000);
+            
+            // Simulate real-time updates
+            function updateStats() {
+                // TODO: Replace with real API calls to Laravel backend
+                const elements = document.querySelectorAll('[data-bind]');
+                elements.forEach(el => {
+                    // Simulate minor changes in data
+                    if (el.dataset.bind.includes('lastUpdate')) {
+                        const now = new Date();
+                        el.textContent = 'Just now';
+                    }
+                });
+            }
+            
+            // Update every 30 seconds
+            setInterval(updateStats, 30000);
+        })();
+    </script>
+</body>
+</html>
