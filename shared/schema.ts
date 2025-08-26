@@ -1,0 +1,227 @@
+import { sql } from 'drizzle-orm';
+import { relations } from 'drizzle-orm';
+import {
+  index,
+  jsonb,
+  pgTable,
+  timestamp,
+  varchar,
+  text,
+  integer,
+  boolean,
+  pgEnum,
+} from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// Session storage table.
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// User roles enum
+export const userRoleEnum = pgEnum('user_role', ['agent', 'supervisor', 'admin']);
+
+// Result status enum  
+export const resultStatusEnum = pgEnum('result_status', ['pending', 'verified', 'flagged', 'rejected']);
+
+// Submission channel enum
+export const submissionChannelEnum = pgEnum('submission_channel', ['whatsapp', 'portal', 'both']);
+
+// User storage table.
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  role: userRoleEnum("role").default('agent').notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Polling centers table
+export const pollingCenters = pgTable("polling_centers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: varchar("code").unique().notNull(),
+  name: varchar("name").notNull(),
+  constituency: varchar("constituency").notNull(),
+  district: varchar("district").notNull(),
+  state: varchar("state").notNull(),
+  registeredVoters: integer("registered_voters").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Candidates table
+export const candidates = pgTable("candidates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  party: varchar("party").notNull(),
+  position: varchar("position").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Results table
+export const results = pgTable("results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  pollingCenterId: varchar("polling_center_id").references(() => pollingCenters.id).notNull(),
+  submittedBy: varchar("submitted_by").references(() => users.id).notNull(),
+  verifiedBy: varchar("verified_by").references(() => users.id),
+  candidateAVotes: integer("candidate_a_votes").notNull(),
+  candidateBVotes: integer("candidate_b_votes").notNull(),
+  candidateCVotes: integer("candidate_c_votes").notNull(),
+  invalidVotes: integer("invalid_votes").notNull(),
+  totalVotes: integer("total_votes").notNull(),
+  status: resultStatusEnum("status").default('pending').notNull(),
+  submissionChannel: submissionChannelEnum("submission_channel").notNull(),
+  comments: text("comments"),
+  flaggedReason: text("flagged_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  verifiedAt: timestamp("verified_at"),
+});
+
+// Result files table (for uploaded photos)
+export const resultFiles = pgTable("result_files", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  resultId: varchar("result_id").references(() => results.id).notNull(),
+  fileName: varchar("file_name").notNull(),
+  filePath: varchar("file_path").notNull(),
+  fileSize: integer("file_size").notNull(),
+  mimeType: varchar("mime_type").notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+});
+
+// Audit logs table
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  action: varchar("action").notNull(),
+  entityType: varchar("entity_type").notNull(),
+  entityId: varchar("entity_id").notNull(),
+  oldValues: jsonb("old_values"),
+  newValues: jsonb("new_values"),
+  ipAddress: varchar("ip_address"),
+  userAgent: varchar("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  submittedResults: many(results, { relationName: "submittedBy" }),
+  verifiedResults: many(results, { relationName: "verifiedBy" }),
+  auditLogs: many(auditLogs),
+}));
+
+export const pollingCentersRelations = relations(pollingCenters, ({ many }) => ({
+  results: many(results),
+}));
+
+export const resultsRelations = relations(results, ({ one, many }) => ({
+  pollingCenter: one(pollingCenters, {
+    fields: [results.pollingCenterId],
+    references: [pollingCenters.id],
+  }),
+  submitter: one(users, {
+    fields: [results.submittedBy],
+    references: [users.id],
+    relationName: "submittedBy",
+  }),
+  verifier: one(users, {
+    fields: [results.verifiedBy],
+    references: [users.id],
+    relationName: "verifiedBy",
+  }),
+  files: many(resultFiles),
+}));
+
+export const resultFilesRelations = relations(resultFiles, ({ one }) => ({
+  result: one(results, {
+    fields: [resultFiles.resultId],
+    references: [results.id],
+  }),
+}));
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [auditLogs.userId],
+    references: [users.id],
+  }),
+}));
+
+// Insert schemas
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const upsertUserSchema = createInsertSchema(users).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPollingCenterSchema = createInsertSchema(pollingCenters).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCandidateSchema = createInsertSchema(candidates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertResultSchema = createInsertSchema(results).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  verifiedAt: true,
+});
+
+export const insertResultFileSchema = createInsertSchema(resultFiles).omit({
+  id: true,
+  uploadedAt: true,
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types
+export type User = typeof users.$inferSelect;
+export type UpsertUser = z.infer<typeof upsertUserSchema>;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type PollingCenter = typeof pollingCenters.$inferSelect;
+export type InsertPollingCenter = z.infer<typeof insertPollingCenterSchema>;
+export type Candidate = typeof candidates.$inferSelect;
+export type InsertCandidate = z.infer<typeof insertCandidateSchema>;
+export type Result = typeof results.$inferSelect;
+export type InsertResult = z.infer<typeof insertResultSchema>;
+export type ResultFile = typeof resultFiles.$inferSelect;
+export type InsertResultFile = z.infer<typeof insertResultFileSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+
+// Extended types with relations
+export type ResultWithRelations = Result & {
+  pollingCenter: PollingCenter;
+  submitter: User;
+  verifier?: User;
+  files: ResultFile[];
+};
+
+export type UserRole = 'agent' | 'supervisor' | 'admin';
+export type ResultStatus = 'pending' | 'verified' | 'flagged' | 'rejected';
+export type SubmissionChannel = 'whatsapp' | 'portal' | 'both';
