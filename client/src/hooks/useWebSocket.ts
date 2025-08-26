@@ -1,13 +1,32 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface WebSocketMessage {
-  data: string;
-  timestamp: number;
+  type: string;
+  data: any;
+  timestamp: string;
+}
+
+interface RealTimeAnalytics {
+  overview: {
+    totalCenters: number;
+    resultsReceived: number;
+    verified: number;
+    flagged: number;
+    completionRate: number;
+    verificationRate: number;
+  };
+  recentActivity: any[];
+  pendingVerifications: number;
+  topCenters: any[];
+  submissionTrends: any[];
+  lastUpdated: string;
 }
 
 export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
+  const [analytics, setAnalytics] = useState<RealTimeAnalytics | null>(null);
+  const [recentSubmissions, setRecentSubmissions] = useState<any[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -25,10 +44,35 @@ export function useWebSocket() {
         };
 
         ws.onmessage = (event) => {
-          setLastMessage({
-            data: event.data,
-            timestamp: Date.now(),
-          });
+          try {
+            const message: WebSocketMessage = JSON.parse(event.data);
+            setLastMessage(message);
+            
+            // Handle different message types
+            switch (message.type) {
+              case 'ANALYTICS_UPDATE':
+                setAnalytics(message.data);
+                break;
+              case 'NEW_RESULT':
+                setRecentSubmissions(prev => [message.data, ...prev.slice(0, 9)]);
+                break;
+              case 'RESULT_STATUS_CHANGED':
+                // Update recent submissions if the changed result is in the list
+                setRecentSubmissions(prev => 
+                  prev.map(item => 
+                    item.id === message.data.id ? message.data : item
+                  )
+                );
+                break;
+              case 'STATS_UPDATE':
+                if (analytics) {
+                  setAnalytics(prev => prev ? { ...prev, overview: message.data } : null);
+                }
+                break;
+            }
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
+          }
         };
 
         ws.onclose = () => {
@@ -63,9 +107,19 @@ export function useWebSocket() {
     }
   };
 
+  // Request analytics update
+  const requestAnalytics = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'REQUEST_ANALYTICS' }));
+    }
+  }, []);
+
   return {
     isConnected,
     lastMessage,
+    analytics,
+    recentSubmissions,
     sendMessage,
+    requestAnalytics,
   };
 }

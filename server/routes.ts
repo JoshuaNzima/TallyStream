@@ -35,6 +35,44 @@ const upload = multer({
 // WebSocket connections store
 const wsConnections = new Set<WebSocket>();
 
+// Broadcast real-time updates to all connected clients
+function broadcastUpdate(type: string, data: any) {
+  const message = JSON.stringify({
+    type,
+    data,
+    timestamp: new Date().toISOString(),
+  });
+
+  wsConnections.forEach((ws) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(message);
+    }
+  });
+}
+
+// Analytics helper to get real-time stats
+async function getRealTimeAnalytics() {
+  try {
+    const stats = await storage.getStats();
+    const recentSubmissions = await storage.getRecentSubmissions(10);
+    const verificationQueue = await storage.getPendingVerifications();
+    const topPerformingCenters = await storage.getTopPerformingCenters(5);
+    const hourlySubmissions = await storage.getHourlySubmissionTrends();
+
+    return {
+      overview: stats,
+      recentActivity: recentSubmissions,
+      pendingVerifications: verificationQueue.length,
+      topCenters: topPerformingCenters,
+      submissionTrends: hourlySubmissions,
+      lastUpdated: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error('Error getting real-time analytics:', error);
+    return null;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
@@ -62,6 +100,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching stats:", error);
       res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
+
+  // Real-time analytics endpoint
+  app.get("/api/analytics", isAuthenticated, async (req, res) => {
+    try {
+      const analytics = await getRealTimeAnalytics();
+      if (analytics) {
+        res.json(analytics);
+      } else {
+        res.status(500).json({ message: "Failed to fetch analytics" });
+      }
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
     }
   });
 
@@ -189,17 +242,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userAgent: req.get("User-Agent"),
       });
 
-      // Broadcast update via WebSocket
-      const updateMessage = JSON.stringify({
-        type: "NEW_RESULT",
-        data: result,
-      });
+      // Broadcast real-time updates
+      broadcastUpdate("NEW_RESULT", result);
       
-      wsConnections.forEach(ws => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(updateMessage);
-        }
-      });
+      // Get and broadcast updated analytics
+      const analytics = await getRealTimeAnalytics();
+      if (analytics) {
+        broadcastUpdate("ANALYTICS_UPDATE", analytics);
+      }
 
       res.status(201).json(result);
     } catch (error) {
@@ -237,17 +287,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userAgent: req.get("User-Agent"),
       });
 
-      // Broadcast update via WebSocket
-      const updateMessage = JSON.stringify({
-        type: "RESULT_STATUS_CHANGED",
-        data: updatedResult,
-      });
+      // Broadcast real-time updates
+      broadcastUpdate("RESULT_STATUS_CHANGED", updatedResult);
       
-      wsConnections.forEach(ws => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(updateMessage);
-        }
-      });
+      // Get and broadcast updated analytics
+      const analytics = await getRealTimeAnalytics();
+      if (analytics) {
+        broadcastUpdate("ANALYTICS_UPDATE", analytics);
+      }
 
       res.json(updatedResult);
     } catch (error) {
@@ -335,9 +382,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WebSocket server for real-time updates
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
+  // Periodic analytics broadcast (every 30 seconds)
+  setInterval(async () => {
+    if (wsConnections.size > 0) {
+      const analytics = await getRealTimeAnalytics();
+      if (analytics) {
+        broadcastUpdate('ANALYTICS_UPDATE', analytics);
+      }
+    }
+  }, 30000);
+
   wss.on('connection', (ws) => {
     console.log('New WebSocket connection');
     wsConnections.add(ws);
+
+    ws.on('message', async (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        
+        if (data.type === 'REQUEST_ANALYTICS') {
+          const analytics = await getRealTimeAnalytics();
+          if (analytics && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'ANALYTICS_UPDATE',
+              data: analytics,
+              timestamp: new Date().toISOString(),
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Error handling WebSocket message:', error);
+      }
+    });
 
     ws.on('close', () => {
       console.log('WebSocket connection closed');
@@ -349,12 +425,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       wsConnections.delete(ws);
     });
 
-    // Send initial stats
-    storage.getStats().then(stats => {
-      if (ws.readyState === WebSocket.OPEN) {
+    // Send initial analytics
+    getRealTimeAnalytics().then(analytics => {
+      if (analytics && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
-          type: "STATS_UPDATE",
-          data: stats,
+          type: "ANALYTICS_UPDATE",
+          data: analytics,
+          timestamp: new Date().toISOString(),
         }));
       }
     });

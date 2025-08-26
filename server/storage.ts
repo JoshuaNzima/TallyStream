@@ -60,6 +60,20 @@ export interface IStorage {
     completionRate: number;
     verificationRate: number;
   }>;
+
+  // Analytics operations for real-time dashboard
+  getRecentSubmissions(limit: number): Promise<any[]>;
+  getPendingVerifications(): Promise<any[]>;
+  getTopPerformingCenters(limit: number): Promise<Array<{
+    pollingCenter: PollingCenter;
+    submissionCount: number;
+    verificationRate: number;
+  }>>;
+  getHourlySubmissionTrends(): Promise<Array<{
+    hour: string;
+    submissions: number;
+    verifications: number;
+  }>>;
   
   // Audit operations
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
@@ -285,6 +299,66 @@ export class DatabaseStorage implements IStorage {
       .from(auditLogs)
       .orderBy(desc(auditLogs.createdAt))
       .limit(limit);
+  }
+
+  // Analytics operations for real-time dashboard
+  async getRecentSubmissions(limit: number): Promise<ResultWithRelations[]> {
+    return await db.select()
+      .from(results)
+      .leftJoin(pollingCenters, eq(results.pollingCenterId, pollingCenters.id))
+      .leftJoin(users, eq(results.submittedBy, users.id))
+      .orderBy(desc(results.createdAt))
+      .limit(limit) as any[];
+  }
+
+  async getPendingVerifications(): Promise<ResultWithRelations[]> {
+    return await db.select()
+      .from(results)
+      .leftJoin(pollingCenters, eq(results.pollingCenterId, pollingCenters.id))
+      .leftJoin(users, eq(results.submittedBy, users.id))
+      .where(eq(results.status, 'pending'))
+      .orderBy(desc(results.createdAt)) as any[];
+  }
+
+  async getTopPerformingCenters(limit: number): Promise<Array<{
+    pollingCenter: PollingCenter;
+    submissionCount: number;
+    verificationRate: number;
+  }>> {
+    const centerStats = await db.select({
+      pollingCenter: pollingCenters,
+      submissionCount: count(results.id).as('submissionCount'),
+      verifiedCount: sql<number>`COUNT(CASE WHEN ${results.status} = 'verified' THEN 1 END)`.as('verifiedCount'),
+    })
+      .from(pollingCenters)
+      .leftJoin(results, eq(pollingCenters.id, results.pollingCenterId))
+      .groupBy(pollingCenters.id)
+      .orderBy(desc(count(results.id)))
+      .limit(limit);
+
+    return centerStats.map(stat => ({
+      pollingCenter: stat.pollingCenter,
+      submissionCount: stat.submissionCount,
+      verificationRate: stat.submissionCount > 0 ? (stat.verifiedCount / stat.submissionCount) * 100 : 0,
+    }));
+  }
+
+  async getHourlySubmissionTrends(): Promise<Array<{
+    hour: string;
+    submissions: number;
+    verifications: number;
+  }>> {
+    const trends = await db.select({
+      hour: sql<string>`TO_CHAR(${results.createdAt}, 'YYYY-MM-DD HH24:00')`.as('hour'),
+      submissions: count(results.id).as('submissions'),
+      verifications: sql<number>`COUNT(CASE WHEN ${results.status} = 'verified' THEN 1 END)`.as('verifications'),
+    })
+      .from(results)
+      .where(sql`${results.createdAt} >= NOW() - INTERVAL '24 hours'`)
+      .groupBy(sql`TO_CHAR(${results.createdAt}, 'YYYY-MM-DD HH24:00')`)
+      .orderBy(sql`TO_CHAR(${results.createdAt}, 'YYYY-MM-DD HH24:00')`);
+
+    return trends;
   }
 }
 
