@@ -279,9 +279,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertResultSchema.parse({
         ...req.body,
-        candidateAVotes: parseInt(req.body.candidateAVotes),
-        candidateBVotes: parseInt(req.body.candidateBVotes),
-        candidateCVotes: parseInt(req.body.candidateCVotes),
+        presidentialVotes: req.body.presidentialVotes ? JSON.parse(req.body.presidentialVotes) : null,
+        mpVotes: req.body.mpVotes ? JSON.parse(req.body.mpVotes) : null,
+        councilorVotes: req.body.councilorVotes ? JSON.parse(req.body.councilorVotes) : null,
         invalidVotes: parseInt(req.body.invalidVotes),
         submittedBy: req.user.id,
       });

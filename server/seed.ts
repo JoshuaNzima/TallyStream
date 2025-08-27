@@ -30,26 +30,70 @@ export async function seedDatabase() {
     const existingCandidates = await storage.getCandidates();
     
     if (existingCandidates.length === 0) {
-      // Create default candidates
+      // Create presidential candidates
       await storage.createCandidate({
         name: "John Presidential",
         party: "Democratic Progressive Party (DPP)",
-        position: "President",
+        category: "president",
       });
 
       await storage.createCandidate({
-        name: "Mary National",
+        name: "Mary National", 
         party: "People's Liberation Party (PLP)",
-        position: "President",
+        category: "president",
       });
 
       await storage.createCandidate({
         name: "Samuel Unity",
-        party: "Unity Development Alliance (UDA)",
-        position: "President",
+        party: "Unity Development Alliance (UDA)", 
+        category: "president",
       });
 
-      console.log("✓ Created default presidential candidates");
+      // Create MP candidates
+      await storage.createCandidate({
+        name: "David Parliamentary",
+        party: "Democratic Progressive Party (DPP)",
+        category: "mp",
+        constituency: "Lagos Central",
+      });
+
+      await storage.createCandidate({
+        name: "Sarah Legislative",
+        party: "People's Liberation Party (PLP)",
+        category: "mp",
+        constituency: "Lagos Central", 
+      });
+
+      await storage.createCandidate({
+        name: "Michael Representative",
+        party: "Unity Development Alliance (UDA)",
+        category: "mp",
+        constituency: "Ikeja Federal",
+      });
+
+      // Create Councilor candidates
+      await storage.createCandidate({
+        name: "Grace Local",
+        party: "Democratic Progressive Party (DPP)", 
+        category: "councilor",
+        constituency: "Lagos Island Ward 1",
+      });
+
+      await storage.createCandidate({
+        name: "Peter Community",
+        party: "People's Liberation Party (PLP)",
+        category: "councilor",
+        constituency: "Ikeja Ward 2",
+      });
+
+      await storage.createCandidate({
+        name: "Ruth Ward",
+        party: "Unity Development Alliance (UDA)",
+        category: "councilor", 
+        constituency: "Surulere Ward 3",
+      });
+
+      console.log("✓ Created candidates for President, MP, and Councilor positions");
     } else {
       console.log("✓ Candidates already exist");
     }

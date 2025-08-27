@@ -17,9 +17,10 @@ import { NotebookPen, Save } from "lucide-react";
 
 const formSchema = z.object({
   pollingCenterId: z.string().min(1, "Polling center is required"),
-  candidateAVotes: z.coerce.number().min(0, "Votes must be non-negative"),
-  candidateBVotes: z.coerce.number().min(0, "Votes must be non-negative"),
-  candidateCVotes: z.coerce.number().min(0, "Votes must be non-negative"),
+  category: z.enum(["president", "mp", "councilor"]),
+  presidentialVotes: z.record(z.coerce.number().min(0)).optional(),
+  mpVotes: z.record(z.coerce.number().min(0)).optional(),
+  councilorVotes: z.record(z.coerce.number().min(0)).optional(),
   invalidVotes: z.coerce.number().min(0, "Invalid votes must be non-negative"),
   submissionChannel: z.enum(["whatsapp", "portal", "both"]),
   comments: z.string().optional(),
@@ -35,13 +36,18 @@ export default function ResultSubmissionForm() {
     queryKey: ["/api/polling-centers"],
   });
 
+  const { data: candidates } = useQuery({
+    queryKey: ["/api/candidates"],
+  });
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       pollingCenterId: "",
-      candidateAVotes: 0,
-      candidateBVotes: 0,
-      candidateCVotes: 0,
+      category: "president",
+      presidentialVotes: {},
+      mpVotes: {},
+      councilorVotes: {},
       invalidVotes: 0,
       submissionChannel: "portal",
       comments: "",
@@ -54,7 +60,11 @@ export default function ResultSubmissionForm() {
       
       // Append form data
       Object.entries(data).forEach(([key, value]) => {
-        formData.append(key, value.toString());
+        if (typeof value === 'object' && value !== null) {
+          formData.append(key, JSON.stringify(value));
+        } else {
+          formData.append(key, value.toString());
+        }
       });
       
       // Append files
@@ -178,48 +188,107 @@ export default function ResultSubmissionForm() {
 
             <div className="border rounded-lg p-4">
               <h4 className="text-md font-medium text-gray-900 mb-4">Candidate Results</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="candidateAVotes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Candidate A Votes</FormLabel>
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Election Category</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} data-testid="select-category">
                       <FormControl>
-                        <Input type="number" min="0" {...field} data-testid="input-candidate-a-votes" />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select election category" />
+                        </SelectTrigger>
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <SelectContent>
+                        <SelectItem value="president">Presidential</SelectItem>
+                        <SelectItem value="mp">Members of Parliament (MP)</SelectItem>
+                        <SelectItem value="councilor">Councilors</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Candidate Votes Section */}
+              <div className="space-y-4">
+                <h4 className="font-medium">Candidate Votes</h4>
                 
-                <FormField
-                  control={form.control}
-                  name="candidateBVotes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Candidate B Votes</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="0" {...field} data-testid="input-candidate-b-votes" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="candidateCVotes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Candidate C Votes</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="0" {...field} data-testid="input-candidate-c-votes" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Presidential Candidates */}
+                {form.watch("category") === "president" && (
+                  <div className="space-y-3">
+                    <h5 className="text-sm font-medium text-gray-700">Presidential Candidates</h5>
+                    {candidates?.filter((c: any) => c.category === "president").map((candidate: any) => (
+                      <FormField
+                        key={candidate.id}
+                        control={form.control}
+                        name={`presidentialVotes.${candidate.id}`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm">
+                              {candidate.name} ({candidate.party})
+                            </FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" {...field} data-testid={`input-votes-${candidate.id}`} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* MP Candidates */}
+                {form.watch("category") === "mp" && (
+                  <div className="space-y-3">
+                    <h5 className="text-sm font-medium text-gray-700">MP Candidates</h5>
+                    {candidates?.filter((c: any) => c.category === "mp").map((candidate: any) => (
+                      <FormField
+                        key={candidate.id}
+                        control={form.control}
+                        name={`mpVotes.${candidate.id}`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm">
+                              {candidate.name} ({candidate.party}) - {candidate.constituency}
+                            </FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" {...field} data-testid={`input-votes-${candidate.id}`} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Councilor Candidates */}
+                {form.watch("category") === "councilor" && (
+                  <div className="space-y-3">
+                    <h5 className="text-sm font-medium text-gray-700">Councilor Candidates</h5>
+                    {candidates?.filter((c: any) => c.category === "councilor").map((candidate: any) => (
+                      <FormField
+                        key={candidate.id}
+                        control={form.control}
+                        name={`councilorVotes.${candidate.id}`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm">
+                              {candidate.name} ({candidate.party}) - {candidate.constituency}
+                            </FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" {...field} data-testid={`input-votes-${candidate.id}`} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
               
               <div className="mt-4">

@@ -34,6 +34,9 @@ export const resultStatusEnum = pgEnum('result_status', ['pending', 'verified', 
 // Submission channel enum
 export const submissionChannelEnum = pgEnum('submission_channel', ['whatsapp', 'portal', 'both']);
 
+// Candidate category enum
+export const candidateCategoryEnum = pgEnum('candidate_category', ['president', 'mp', 'councilor']);
+
 // User storage table.
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -71,7 +74,8 @@ export const candidates = pgTable("candidates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
   party: varchar("party").notNull(),
-  position: varchar("position").notNull(),
+  category: candidateCategoryEnum("category").notNull(),
+  constituency: varchar("constituency"), // For MPs and Councilors
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -82,9 +86,17 @@ export const results = pgTable("results", {
   pollingCenterId: varchar("polling_center_id").references(() => pollingCenters.id).notNull(),
   submittedBy: varchar("submitted_by").references(() => users.id).notNull(),
   verifiedBy: varchar("verified_by").references(() => users.id),
-  candidateAVotes: integer("candidate_a_votes").notNull(),
-  candidateBVotes: integer("candidate_b_votes").notNull(),
-  candidateCVotes: integer("candidate_c_votes").notNull(),
+  category: candidateCategoryEnum("category").notNull(),
+  
+  // Presidential votes
+  presidentialVotes: jsonb("presidential_votes"), // {candidateId: votes}
+  
+  // MP votes  
+  mpVotes: jsonb("mp_votes"), // {candidateId: votes}
+  
+  // Councilor votes
+  councilorVotes: jsonb("councilor_votes"), // {candidateId: votes}
+  
   invalidVotes: integer("invalid_votes").notNull(),
   totalVotes: integer("total_votes").notNull(),
   status: resultStatusEnum("status").default('pending').notNull(),
@@ -245,3 +257,4 @@ export type ResultWithRelations = Result & {
 export type UserRole = 'agent' | 'supervisor' | 'admin';
 export type ResultStatus = 'pending' | 'verified' | 'flagged' | 'rejected';
 export type SubmissionChannel = 'whatsapp' | 'portal' | 'both';
+export type CandidateCategory = 'president' | 'mp' | 'councilor';

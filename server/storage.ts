@@ -217,7 +217,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createResult(result: InsertResult): Promise<Result> {
-    const totalVotes = result.candidateAVotes + result.candidateBVotes + result.candidateCVotes + result.invalidVotes;
+    // Calculate total votes from all categories
+    let totalVotes = result.invalidVotes;
+    
+    if (result.presidentialVotes) {
+      const presidentialTotal = Object.values(result.presidentialVotes as Record<string, number>).reduce((sum, votes) => sum + votes, 0);
+      totalVotes += presidentialTotal;
+    }
+    
+    if (result.mpVotes) {
+      const mpTotal = Object.values(result.mpVotes as Record<string, number>).reduce((sum, votes) => sum + votes, 0);
+      totalVotes += mpTotal;
+    }
+    
+    if (result.councilorVotes) {
+      const councilorTotal = Object.values(result.councilorVotes as Record<string, number>).reduce((sum, votes) => sum + votes, 0);
+      totalVotes += councilorTotal;
+    }
+
     const [newResult] = await db
       .insert(results)
       .values({ ...result, totalVotes })
