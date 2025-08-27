@@ -1,9 +1,10 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Vote } from "lucide-react";
+import { User } from "@shared/schema";
 
 export default function Navigation() {
-  const { user } = useAuth();
+  const { user } = useAuth() as { user: User | null };
 
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200">

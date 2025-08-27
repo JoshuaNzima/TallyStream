@@ -8,6 +8,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated, hashPassword, validateRegister, validateLogin } from "./auth";
 import passport from "passport";
 import { insertResultSchema, insertPollingCenterSchema, insertCandidateSchema } from "@shared/schema";
+import { seedDatabase } from "./seed";
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -78,6 +79,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  // Seed database on startup
+  await seedDatabase();
+
   // Auth routes
   app.post('/api/register', async (req, res) => {
     try {
@@ -92,10 +96,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash password and create user
       const passwordHash = await hashPassword(userData.password);
       const user = await storage.createUser({
-        email: userData.email,
-        phone: userData.phone,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
+        email: userData.email || undefined,
+        phone: userData.phone || undefined,
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
         passwordHash,
       });
 

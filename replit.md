@@ -35,10 +35,12 @@ Preferred communication style: Simple, everyday language.
 - **Session Storage**: Persistent session management for user authentication state
 
 ### Authentication & Authorization
-- **Single Sign-On**: OpenID Connect integration for secure authentication
-- **Role-Based Access**: Three-tier permission system (agent, supervisor, admin)
+- **Custom Authentication**: Standard login with email/phone and password
+- **Role-Based Access**: Three-tier permission system (agent, supervisor, admin)  
+- **Password Security**: Bcrypt hashing with salt rounds for secure password storage
 - **Session Security**: HTTP-only cookies with secure session storage
 - **Route Protection**: Middleware-based access control for API endpoints and frontend routes
+- **Auto-seeding**: Automatic creation of default admin account and sample data
 
 ### Real-time Features
 - **Live Dashboard**: WebSocket-powered real-time updates for election statistics
@@ -52,7 +54,7 @@ Preferred communication style: Simple, everyday language.
 - **Drizzle ORM**: Type-safe database operations with automatic migration management
 
 ### Authentication Services
-- **Replit Auth**: OpenID Connect provider for user authentication and profile management
+- **Custom Authentication**: Email/phone + password authentication with bcrypt hashing
 - **Connect-PG-Simple**: PostgreSQL session store for persistent user sessions
 
 ### UI & Styling
