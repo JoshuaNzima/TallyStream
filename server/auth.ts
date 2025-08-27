@@ -69,6 +69,10 @@ export async function setupAuth(app: Express) {
           return done(null, false, { message: 'Account is disabled' });
         }
 
+        if (!user.isApproved) {
+          return done(null, false, { message: 'Account pending approval' });
+        }
+
         // Update last login
         await storage.updateLastLogin(user.id);
 

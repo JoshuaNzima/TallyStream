@@ -19,8 +19,9 @@ export async function seedDatabase() {
         passwordHash: adminPasswordHash,
       });
       
-      // Set admin role
+      // Set admin role and approve user
       await storage.updateUserRole(adminUser.id, "admin");
+      await storage.approveUser(adminUser.id);
       console.log("✓ Created default admin user: admin@ptcsystem.com / admin123!");
     } else {
       console.log("✓ Admin user already exists");
@@ -51,46 +52,46 @@ export async function seedDatabase() {
 
       // Create MP candidates
       await storage.createCandidate({
-        name: "David Parliamentary",
+        name: "David Mchazime",
+        party: "Malawi Congress Party (MCP)",
+        category: "mp",
+        constituency: "Lilongwe City Centre",
+      });
+
+      await storage.createCandidate({
+        name: "Sarah Banda",
         party: "Democratic Progressive Party (DPP)",
         category: "mp",
-        constituency: "Lagos Central",
+        constituency: "Lilongwe City Centre", 
       });
 
       await storage.createCandidate({
-        name: "Sarah Legislative",
-        party: "People's Liberation Party (PLP)",
+        name: "Michael Phiri",
+        party: "United Democratic Front (UDF)",
         category: "mp",
-        constituency: "Lagos Central", 
-      });
-
-      await storage.createCandidate({
-        name: "Michael Representative",
-        party: "Unity Development Alliance (UDA)",
-        category: "mp",
-        constituency: "Ikeja Federal",
+        constituency: "Blantyre City South",
       });
 
       // Create Councilor candidates
       await storage.createCandidate({
-        name: "Grace Local",
-        party: "Democratic Progressive Party (DPP)", 
+        name: "Grace Mwale",
+        party: "Malawi Congress Party (MCP)", 
         category: "councilor",
-        constituency: "Lagos Island Ward 1",
+        constituency: "Lilongwe Ward 1",
       });
 
       await storage.createCandidate({
-        name: "Peter Community",
-        party: "People's Liberation Party (PLP)",
+        name: "Peter Kachali",
+        party: "Democratic Progressive Party (DPP)",
         category: "councilor",
-        constituency: "Ikeja Ward 2",
+        constituency: "Blantyre Ward 2",
       });
 
       await storage.createCandidate({
-        name: "Ruth Ward",
-        party: "Unity Development Alliance (UDA)",
+        name: "Ruth Ngwira",
+        party: "United Democratic Front (UDF)",
         category: "councilor", 
-        constituency: "Surulere Ward 3",
+        constituency: "Mzuzu Ward 3",
       });
 
       console.log("✓ Created candidates for President, MP, and Councilor positions");
@@ -105,28 +106,28 @@ export async function seedDatabase() {
       // Create sample polling centers
       await storage.createPollingCenter({
         code: "PC001",
-        name: "Central Primary School",
-        constituency: "Lagos Central",
-        district: "Lagos Island",
-        state: "Lagos",
+        name: "Lilongwe Primary School",
+        constituency: "Lilongwe City Centre",
+        district: "Lilongwe",
+        state: "Central Region",
         registeredVoters: 1250,
       });
 
       await storage.createPollingCenter({
         code: "PC002", 
-        name: "Community Hall Ikeja",
-        constituency: "Ikeja Federal",
-        district: "Ikeja",
-        state: "Lagos",
+        name: "Blantyre Community Hall",
+        constituency: "Blantyre City South",
+        district: "Blantyre",
+        state: "Southern Region",
         registeredVoters: 980,
       });
 
       await storage.createPollingCenter({
         code: "PC003",
-        name: "St. Mary's Secondary School",
-        constituency: "Surulere East",
-        district: "Surulere",
-        state: "Lagos",
+        name: "Mzuzu Secondary School",
+        constituency: "Mzuzu City",
+        district: "Mzuzu",
+        state: "Northern Region",
         registeredVoters: 1450,
       });
 

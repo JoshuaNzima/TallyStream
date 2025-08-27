@@ -134,6 +134,19 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async approveUser(userId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ isApproved: true, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async getPendingUsers(): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.isApproved, false));
+  }
+
   // Polling center operations
   async getPollingCenters(): Promise<PollingCenter[]> {
     return await db.select().from(pollingCenters).where(eq(pollingCenters.isActive, true));

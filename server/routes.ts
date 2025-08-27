@@ -82,6 +82,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Seed database on startup
   await seedDatabase();
 
+  // Admin routes
+  app.get('/api/admin/pending-users', isAuthenticated, async (req: any, res) => {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    try {
+      const pendingUsers = await storage.getPendingUsers();
+      res.json(pendingUsers);
+    } catch (error) {
+      console.error("Error fetching pending users:", error);
+      res.status(500).json({ message: "Failed to fetch pending users" });
+    }
+  });
+
+  app.post('/api/admin/approve-user/:userId', isAuthenticated, async (req: any, res) => {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    try {
+      const { userId } = req.params;
+      const approvedUser = await storage.approveUser(userId);
+      res.json(approvedUser);
+    } catch (error) {
+      console.error("Error approving user:", error);
+      res.status(500).json({ message: "Failed to approve user" });
+    }
+  });
+
   // Auth routes
   app.post('/api/register', async (req, res) => {
     try {

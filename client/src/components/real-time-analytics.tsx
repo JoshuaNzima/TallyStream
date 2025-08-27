@@ -6,7 +6,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useQuery } from '@tanstack/react-query';
 import { Activity, Users, CheckCircle, AlertTriangle, Clock, TrendingUp } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
 export function RealTimeAnalytics() {
   const { analytics, isConnected, requestAnalytics } = useWebSocket();

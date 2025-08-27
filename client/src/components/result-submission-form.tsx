@@ -150,7 +150,7 @@ export default function ResultSubmissionForm() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {pollingCenters?.map((center: any) => (
+                        {pollingCenters && Array.isArray(pollingCenters) && pollingCenters.map((center: any) => (
                           <SelectItem key={center.id} value={center.id}>
                             {center.code} - {center.name}
                           </SelectItem>
@@ -219,7 +219,7 @@ export default function ResultSubmissionForm() {
                 {form.watch("category") === "president" && (
                   <div className="space-y-3">
                     <h5 className="text-sm font-medium text-gray-700">Presidential Candidates</h5>
-                    {candidates?.filter((c: any) => c.category === "president").map((candidate: any) => (
+                    {candidates && Array.isArray(candidates) && candidates.filter((c: any) => c.category === "president").map((candidate: any) => (
                       <FormField
                         key={candidate.id}
                         control={form.control}
@@ -244,7 +244,7 @@ export default function ResultSubmissionForm() {
                 {form.watch("category") === "mp" && (
                   <div className="space-y-3">
                     <h5 className="text-sm font-medium text-gray-700">MP Candidates</h5>
-                    {candidates?.filter((c: any) => c.category === "mp").map((candidate: any) => (
+                    {candidates && Array.isArray(candidates) && candidates.filter((c: any) => c.category === "mp").map((candidate: any) => (
                       <FormField
                         key={candidate.id}
                         control={form.control}
@@ -269,7 +269,7 @@ export default function ResultSubmissionForm() {
                 {form.watch("category") === "councilor" && (
                   <div className="space-y-3">
                     <h5 className="text-sm font-medium text-gray-700">Councilor Candidates</h5>
-                    {candidates?.filter((c: any) => c.category === "councilor").map((candidate: any) => (
+                    {candidates && Array.isArray(candidates) && candidates.filter((c: any) => c.category === "councilor").map((candidate: any) => (
                       <FormField
                         key={candidate.id}
                         control={form.control}

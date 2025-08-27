@@ -6,7 +6,8 @@ import {
   CheckCircle, 
   FileText, 
   Users, 
-  History 
+  History,
+  Settings
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -16,6 +17,7 @@ const navigation = [
   { name: "Verify Results", href: "/verify-results", icon: CheckCircle, roles: ["supervisor", "admin"] },
   { name: "Reports", href: "/reports", icon: FileText, roles: ["supervisor", "admin"] },
   { name: "User Management", href: "/user-management", icon: Users, roles: ["admin"] },
+  { name: "Admin Management", href: "/admin-management", icon: Settings, roles: ["admin"] },
   { name: "Audit Trail", href: "/audit-trail", icon: History, roles: ["supervisor", "admin"] },
 ];
 
