@@ -39,7 +39,15 @@ export default function Navigation() {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => window.location.href = "/api/logout"}
+                onClick={async () => {
+                  try {
+                    await fetch("/api/logout", { method: "POST" });
+                    window.location.href = "/login";
+                  } catch (error) {
+                    console.error("Logout failed:", error);
+                    window.location.href = "/login";
+                  }
+                }}
                 data-testid="button-logout"
               >
                 Logout

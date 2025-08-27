@@ -27,9 +27,12 @@ import { eq, desc, and, or, count, sql } from "drizzle-orm";
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
+  getUserByIdentifier(identifier: string): Promise<User | undefined>;
+  createUser(user: { email?: string; phone?: string; firstName: string; lastName: string; passwordHash: string }): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUserRole(userId: string, role: UserRole): Promise<User>;
+  updateLastLogin(userId: string): Promise<void>;
   
   // Polling center operations
   getPollingCenters(): Promise<PollingCenter[]>;
@@ -85,6 +88,22 @@ export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
+  }
+
+  async getUserByIdentifier(identifier: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(
+      or(eq(users.email, identifier), eq(users.phone, identifier))
+    );
+    return user;
+  }
+
+  async createUser(userData: { email?: string; phone?: string; firstName: string; lastName: string; passwordHash: string }): Promise<User> {
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async updateLastLogin(userId: string): Promise<void> {
+    await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, userId));
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {

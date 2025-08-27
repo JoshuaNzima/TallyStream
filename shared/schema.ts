@@ -38,11 +38,16 @@ export const submissionChannelEnum = pgEnum('submission_channel', ['whatsapp', '
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
+  phone: varchar("phone").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
+  passwordHash: varchar("password_hash").notNull(),
   profileImageUrl: varchar("profile_image_url"),
   role: userRoleEnum("role").default('agent').notNull(),
   isActive: boolean("is_active").default(true).notNull(),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  phoneVerified: boolean("phone_verified").default(false).notNull(),
+  lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -162,8 +167,23 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
+  passwordHash: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const registerUserSchema = createInsertSchema(users).pick({
+  email: true,
+  phone: true,
+  firstName: true,
+  lastName: true,
+}).extend({
+  password: z.string().min(8, "Password must be at least 8 characters long"),
+});
+
+export const loginSchema = z.object({
+  identifier: z.string().min(1, "Email or phone is required"),
+  password: z.string().min(1, "Password is required"),
 });
 
 export const upsertUserSchema = createInsertSchema(users).omit({

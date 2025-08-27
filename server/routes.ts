@@ -5,7 +5,8 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, hashPassword, validateRegister, validateLogin } from "./auth";
+import passport from "passport";
 import { insertResultSchema, insertPollingCenterSchema, insertCandidateSchema } from "@shared/schema";
 
 // Configure multer for file uploads
@@ -78,14 +79,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
   // Auth routes
+  app.post('/api/register', async (req, res) => {
+    try {
+      const userData = validateRegister(req.body);
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByIdentifier(userData.email || userData.phone || '');
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists with this email or phone" });
+      }
+
+      // Hash password and create user
+      const passwordHash = await hashPassword(userData.password);
+      const user = await storage.createUser({
+        email: userData.email,
+        phone: userData.phone,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        passwordHash,
+      });
+
+      // Remove password hash from response
+      const { passwordHash: _, ...userResponse } = user;
+      res.status(201).json(userResponse);
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      res.status(400).json({ message: error.message || "Registration failed" });
+    }
+  });
+
+  app.post('/api/login', (req, res, next) => {
+    try {
+      validateLogin(req.body);
+      
+      passport.authenticate('local', (err: any, user: any, info: any) => {
+        if (err) {
+          return res.status(500).json({ message: "Login failed" });
+        }
+        if (!user) {
+          return res.status(401).json({ message: info?.message || "Invalid credentials" });
+        }
+        
+        req.logIn(user, (err) => {
+          if (err) {
+            return res.status(500).json({ message: "Login failed" });
+          }
+          // Remove password hash from response
+          const { passwordHash, ...userResponse } = user;
+          res.json(userResponse);
+        });
+      })(req, res, next);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Invalid request" });
+    }
+  });
+
+  app.post('/api/logout', (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.json({ message: "Logged out successfully" });
+    });
+  });
+
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = req.user;
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      res.json(user);
+      // Remove password hash from response
+      const { passwordHash, ...userResponse } = user;
+      res.json(userResponse);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -132,7 +198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/polling-centers", isAuthenticated, async (req: any, res) => {
     try {
       // Only admins can create polling centers
-      const user = await storage.getUser(req.user.claims.sub);
+      const user = req.user;
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -142,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Log audit
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: req.user.id,
         action: "CREATE",
         entityType: "polling_center",
         entityId: center.id,
@@ -172,7 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/candidates", isAuthenticated, async (req: any, res) => {
     try {
       // Only admins can create candidates
-      const user = await storage.getUser(req.user.claims.sub);
+      const user = req.user;
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -213,7 +279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         candidateBVotes: parseInt(req.body.candidateBVotes),
         candidateCVotes: parseInt(req.body.candidateCVotes),
         invalidVotes: parseInt(req.body.invalidVotes),
-        submittedBy: req.user.claims.sub,
+        submittedBy: req.user.id,
       });
 
       const result = await storage.createResult(validatedData);
@@ -233,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Log audit
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: req.user.id,
         action: "CREATE",
         entityType: "result",
         entityId: result.id,
@@ -261,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Verify/approve results
   app.patch("/api/results/:id/status", isAuthenticated, async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
+      const user = req.user;
       if (user?.role !== 'supervisor' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Access denied. Supervisor or admin role required." });
       }
@@ -272,17 +338,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedResult = await storage.updateResultStatus(
         resultId,
         status,
-        req.user.claims.sub,
+        req.user.id,
         flaggedReason
       );
 
       // Log audit
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: req.user.id,
         action: "UPDATE",
         entityType: "result",
         entityId: resultId,
-        newValues: { status, verifiedBy: req.user.claims.sub, flaggedReason },
+        newValues: { status, verifiedBy: req.user.id, flaggedReason },
         ipAddress: req.ip,
         userAgent: req.get("User-Agent"),
       });
@@ -306,7 +372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User management (admin only)
   app.get("/api/users", isAuthenticated, async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
+      const user = req.user;
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -321,7 +387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/users/:id/role", isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const currentUser = await storage.getUser(req.user.id);
       if (currentUser?.role !== 'admin') {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -333,7 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Log audit
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: req.user.id,
         action: "UPDATE",
         entityType: "user",
         entityId: userId,
@@ -352,7 +418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Audit logs
   app.get("/api/audit-logs", isAuthenticated, async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
+      const user = req.user;
       if (user?.role !== 'admin' && user?.role !== 'supervisor') {
         return res.status(403).json({ message: "Access denied" });
       }
