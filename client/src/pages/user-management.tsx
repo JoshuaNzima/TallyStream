@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, Shield } from "lucide-react";
+import { Users, Shield, UserX, Trash2 } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 export default function UserManagement() {
@@ -43,6 +43,48 @@ export default function UserManagement() {
       toast({
         title: "Error",
         description: "Failed to update user role",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deactivateUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("PATCH", `/api/admin/users/${userId}/deactivate`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({
+        title: "Success",
+        description: "User deactivated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to deactivate user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/users/${userId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({
+        title: "Success",
+        description: "User deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete user",
         variant: "destructive",
       });
     },
@@ -97,7 +139,7 @@ export default function UserManagement() {
             <div className="text-center py-8">Loading users...</div>
           ) : (
             <div className="space-y-4">
-              {users?.map((user: any) => (
+              {users && Array.isArray(users) && users.map((user: any) => (
                 <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center space-x-4">
                     <img
@@ -134,6 +176,36 @@ export default function UserManagement() {
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
                     </Select>
+
+                    {user.isActive ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deactivateUserMutation.mutate(user.id)}
+                        disabled={deactivateUserMutation.isPending}
+                        data-testid={`button-deactivate-${user.id}`}
+                      >
+                        <UserX className="h-4 w-4 mr-2" />
+                        Deactivate
+                      </Button>
+                    ) : (
+                      <Badge variant="destructive">Inactive</Badge>
+                    )}
+
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+                          deleteUserMutation.mutate(user.id);
+                        }
+                      }}
+                      disabled={deleteUserMutation.isPending}
+                      data-testid={`button-delete-${user.id}`}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
                   </div>
                 </div>
               ))}

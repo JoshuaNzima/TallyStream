@@ -463,6 +463,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin database management routes
+  app.patch("/api/admin/users/:id/deactivate", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = req.user;
+      if (currentUser?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const userId = req.params.id;
+      const updatedUser = await storage.deactivateUser(userId);
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: "UPDATE",
+        entityType: "user",
+        entityId: userId,
+        newValues: { isActive: false },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error deactivating user:", error);
+      res.status(400).json({ message: "Failed to deactivate user" });
+    }
+  });
+
+  app.delete("/api/admin/users/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = req.user;
+      if (currentUser?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const userId = req.params.id;
+      
+      // Prevent admin from deleting themselves
+      if (userId === currentUser.id) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+
+      // Get user data before deletion for audit log
+      const userToDelete = await storage.getUser(userId);
+      if (!userToDelete) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      await storage.deleteUser(userId);
+
+      // Log audit (create after deletion since user audit logs are deleted)
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: "DELETE",
+        entityType: "user",
+        entityId: userId,
+        oldValues: userToDelete,
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(400).json({ message: "Failed to delete user" });
+    }
+  });
+
+  app.post("/api/admin/archive-results", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = req.user;
+      if (currentUser?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const archivedCount = await storage.archiveResults();
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: "UPDATE",
+        entityType: "results",
+        entityId: "bulk",
+        newValues: { archivedCount },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json({ message: `${archivedCount} results archived successfully`, archivedCount });
+    } catch (error) {
+      console.error("Error archiving results:", error);
+      res.status(500).json({ message: "Failed to archive results" });
+    }
+  });
+
+  app.post("/api/admin/clean-database", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = req.user;
+      if (currentUser?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { users: cleanUsers, candidates, pollingCenters, results, keepAdmin } = req.body;
+
+      const cleanupResult = await storage.cleanDatabase({
+        users: cleanUsers,
+        candidates,
+        pollingCenters,
+        results,
+        keepAdmin,
+      });
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: "DELETE",
+        entityType: "database",
+        entityId: "bulk_cleanup",
+        newValues: { cleanupOptions: req.body, results: cleanupResult },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json({ 
+        message: "Database cleanup completed successfully", 
+        results: cleanupResult 
+      });
+    } catch (error) {
+      console.error("Error cleaning database:", error);
+      res.status(500).json({ message: "Failed to clean database" });
+    }
+  });
+
   // File serving
   app.get("/api/files/:filename", isAuthenticated, (req, res) => {
     const filename = req.params.filename;

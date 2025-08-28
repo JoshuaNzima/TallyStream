@@ -81,6 +81,23 @@ export interface IStorage {
   // Audit operations
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(limit?: number): Promise<AuditLog[]>;
+
+  // Admin database management operations
+  deactivateUser(userId: string): Promise<User>;
+  deleteUser(userId: string): Promise<void>;
+  archiveResults(): Promise<number>;
+  cleanDatabase(options: {
+    users?: boolean;
+    candidates?: boolean;
+    pollingCenters?: boolean;
+    results?: boolean;
+    keepAdmin?: boolean;
+  }): Promise<{
+    usersDeleted: number;
+    candidatesDeleted: number;
+    pollingCentersDeleted: number;
+    resultsDeleted: number;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -408,6 +425,108 @@ export class DatabaseStorage implements IStorage {
       .orderBy(sql`TO_CHAR(${results.createdAt}, 'YYYY-MM-DD HH24:00')`);
 
     return trends;
+  }
+
+  // Admin database management operations
+  async deactivateUser(userId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    // Delete user's audit logs first to avoid foreign key constraint issues
+    await db.delete(auditLogs).where(eq(auditLogs.userId, userId));
+    
+    // Delete user's result files
+    const userResults = await db.select({ id: results.id }).from(results).where(eq(results.submittedBy, userId));
+    for (const result of userResults) {
+      await db.delete(resultFiles).where(eq(resultFiles.resultId, result.id));
+    }
+    
+    // Delete user's results
+    await db.delete(results).where(eq(results.submittedBy, userId));
+    
+    // Finally delete the user
+    await db.delete(users).where(eq(users.id, userId));
+  }
+
+  async archiveResults(): Promise<number> {
+    // For now, we'll mark old results as archived by updating their status
+    // In a full implementation, you might move them to a separate archive table
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    
+    const archivedResults = await db
+      .update(results)
+      .set({ status: 'archived' as any })
+      .where(sql`${results.createdAt} < ${oneYearAgo}`)
+      .returning();
+    
+    return archivedResults.length;
+  }
+
+  async cleanDatabase(options: {
+    users?: boolean;
+    candidates?: boolean;
+    pollingCenters?: boolean;
+    results?: boolean;
+    keepAdmin?: boolean;
+  }): Promise<{
+    usersDeleted: number;
+    candidatesDeleted: number;
+    pollingCentersDeleted: number;
+    resultsDeleted: number;
+  }> {
+    let usersDeleted = 0;
+    let candidatesDeleted = 0;
+    let pollingCentersDeleted = 0;
+    let resultsDeleted = 0;
+
+    // Clean results first to avoid foreign key issues
+    if (options.results) {
+      // Delete result files first
+      await db.delete(resultFiles);
+      const deletedResults = await db.delete(results).returning();
+      resultsDeleted = deletedResults.length;
+    }
+
+    // Clean candidates
+    if (options.candidates) {
+      const deletedCandidates = await db.delete(candidates).returning();
+      candidatesDeleted = deletedCandidates.length;
+    }
+
+    // Clean polling centers
+    if (options.pollingCenters) {
+      const deletedCenters = await db.delete(pollingCenters).returning();
+      pollingCentersDeleted = deletedCenters.length;
+    }
+
+    // Clean users (except admin if specified)
+    if (options.users) {
+      // Delete audit logs first
+      await db.delete(auditLogs);
+      
+      let deletedUsers;
+      if (options.keepAdmin) {
+        deletedUsers = await db.delete(users).where(sql`${users.role} != 'admin'`).returning();
+      } else {
+        deletedUsers = await db.delete(users).returning();
+      }
+      
+      usersDeleted = deletedUsers.length;
+    }
+
+    return {
+      usersDeleted,
+      candidatesDeleted,
+      pollingCentersDeleted,
+      resultsDeleted,
+    };
   }
 }
 
