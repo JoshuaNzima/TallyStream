@@ -190,6 +190,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Profile management routes
+  app.put("/api/auth/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const { firstName, lastName, email, phone } = req.body;
+      
+      const updatedUser = await storage.updateUser(req.user.id, {
+        firstName,
+        lastName,
+        email,
+        phone,
+        updatedAt: new Date(),
+      });
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(400).json({ message: "Failed to update profile" });
+    }
+  });
+
+  app.put("/api/auth/change-password", isAuthenticated, async (req: any, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      
+      // Verify current password
+      const user = await storage.getUserById(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isValidPassword) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      // Hash new password
+      const newPasswordHash = await bcrypt.hash(newPassword, 10);
+      
+      await storage.updateUser(req.user.id, {
+        passwordHash: newPasswordHash,
+        updatedAt: new Date(),
+      });
+
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(400).json({ message: "Failed to change password" });
+    }
+  });
+
+  // Password reset route (for future implementation)
+  app.post("/api/auth/request-password-reset", async (req, res) => {
+    try {
+      const { identifier } = req.body; // email or phone
+      
+      // TODO: Implement password reset token generation and email/SMS sending
+      res.json({ 
+        message: "If an account with this email/phone exists, you will receive reset instructions.",
+        implemented: false 
+      });
+    } catch (error) {
+      console.error("Error requesting password reset:", error);
+      res.status(500).json({ message: "Failed to process password reset request" });
+    }
+  });
+
   // Dashboard stats
   app.get("/api/stats", isAuthenticated, async (req, res) => {
     try {

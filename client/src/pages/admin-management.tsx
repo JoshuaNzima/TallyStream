@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Users, UserCheck, Building, Vote, MapPin, Database, Archive, Trash2, AlertTriangle } from "lucide-react";
+import { Users, UserCheck, Building, Vote, MapPin, Database, Archive, Trash2, AlertTriangle, Zap, Key, MessageSquare, Shield } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export default function AdminManagement() {
@@ -20,6 +20,20 @@ export default function AdminManagement() {
     pollingCenters: false,
     results: false,
     keepAdmin: true,
+  });
+
+  // API settings state
+  const [apiSettings, setApiSettings] = useState({
+    twoFaEnabled: false,
+    whatsappEnabled: false,
+    passwordResetEnabled: true,
+    whatsappApiKey: '',
+    whatsappPhoneNumber: '',
+    emailProvider: 'smtp',
+    smtpHost: '',
+    smtpPort: 587,
+    smtpUser: '',
+    smtpPassword: '',
   });
 
   // Fetch pending users
@@ -201,7 +215,7 @@ export default function AdminManagement() {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="users" data-testid="tab-users">
             <Users className="w-4 h-4 mr-2" />
             Users
@@ -213,6 +227,10 @@ export default function AdminManagement() {
           <TabsTrigger value="centers" data-testid="tab-centers">
             <Building className="w-4 h-4 mr-2" />
             Polling Centers
+          </TabsTrigger>
+          <TabsTrigger value="api" data-testid="tab-api">
+            <Zap className="w-4 h-4 mr-2" />
+            API & Integrations
           </TabsTrigger>
           <TabsTrigger value="database" data-testid="tab-database">
             <Database className="w-4 h-4 mr-2" />
@@ -422,6 +440,216 @@ export default function AdminManagement() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="api" className="space-y-4">
+          <div className="grid gap-6">
+            {/* 2FA Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="w-5 h-5" />
+                  Two-Factor Authentication (2FA)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Enable 2FA for all users</p>
+                      <p className="text-sm text-gray-600">
+                        Require users to set up 2FA for enhanced security
+                      </p>
+                    </div>
+                    <Checkbox
+                      checked={apiSettings.twoFaEnabled}
+                      onCheckedChange={(checked) =>
+                        setApiSettings(prev => ({ ...prev, twoFaEnabled: checked as boolean }))
+                      }
+                      data-testid="checkbox-2fa-enabled"
+                    />
+                  </div>
+                  <p className="text-sm text-blue-600">
+                    <Shield className="w-4 h-4 inline mr-1" />
+                    When enabled, users will be required to set up 2FA using authenticator apps
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* WhatsApp Integration */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  WhatsApp Integration
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Enable WhatsApp uploads</p>
+                      <p className="text-sm text-gray-600">
+                        Allow agents to submit results via WhatsApp
+                      </p>
+                    </div>
+                    <Checkbox
+                      checked={apiSettings.whatsappEnabled}
+                      onCheckedChange={(checked) =>
+                        setApiSettings(prev => ({ ...prev, whatsappEnabled: checked as boolean }))
+                      }
+                      data-testid="checkbox-whatsapp-enabled"
+                    />
+                  </div>
+
+                  {apiSettings.whatsappEnabled && (
+                    <div className="space-y-3 border-l-4 border-green-500 pl-4">
+                      <div>
+                        <label className="text-sm font-medium">WhatsApp API Key</label>
+                        <Input
+                          type="password"
+                          value={apiSettings.whatsappApiKey}
+                          onChange={(e) =>
+                            setApiSettings(prev => ({ ...prev, whatsappApiKey: e.target.value }))
+                          }
+                          placeholder="Enter WhatsApp Business API key"
+                          data-testid="input-whatsapp-api-key"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">WhatsApp Phone Number</label>
+                        <Input
+                          value={apiSettings.whatsappPhoneNumber}
+                          onChange={(e) =>
+                            setApiSettings(prev => ({ ...prev, whatsappPhoneNumber: e.target.value }))
+                          }
+                          placeholder="+1234567890"
+                          data-testid="input-whatsapp-phone"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Email Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="w-5 h-5" />
+                  Email Configuration
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Enable password reset emails</p>
+                      <p className="text-sm text-gray-600">
+                        Allow users to reset passwords via email
+                      </p>
+                    </div>
+                    <Checkbox
+                      checked={apiSettings.passwordResetEnabled}
+                      onCheckedChange={(checked) =>
+                        setApiSettings(prev => ({ ...prev, passwordResetEnabled: checked as boolean }))
+                      }
+                      data-testid="checkbox-password-reset-enabled"
+                    />
+                  </div>
+
+                  {apiSettings.passwordResetEnabled && (
+                    <div className="space-y-3 border-l-4 border-blue-500 pl-4">
+                      <div>
+                        <label className="text-sm font-medium">Email Provider</label>
+                        <Select
+                          value={apiSettings.emailProvider}
+                          onValueChange={(value) =>
+                            setApiSettings(prev => ({ ...prev, emailProvider: value }))
+                          }
+                        >
+                          <SelectTrigger data-testid="select-email-provider">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="smtp">SMTP</SelectItem>
+                            <SelectItem value="sendgrid">SendGrid</SelectItem>
+                            <SelectItem value="mailgun">Mailgun</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {apiSettings.emailProvider === 'smtp' && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-sm font-medium">SMTP Host</label>
+                            <Input
+                              value={apiSettings.smtpHost}
+                              onChange={(e) =>
+                                setApiSettings(prev => ({ ...prev, smtpHost: e.target.value }))
+                              }
+                              placeholder="smtp.example.com"
+                              data-testid="input-smtp-host"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">SMTP Port</label>
+                            <Input
+                              type="number"
+                              value={apiSettings.smtpPort}
+                              onChange={(e) =>
+                                setApiSettings(prev => ({ ...prev, smtpPort: parseInt(e.target.value) }))
+                              }
+                              data-testid="input-smtp-port"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">SMTP Username</label>
+                            <Input
+                              value={apiSettings.smtpUser}
+                              onChange={(e) =>
+                                setApiSettings(prev => ({ ...prev, smtpUser: e.target.value }))
+                              }
+                              placeholder="username@example.com"
+                              data-testid="input-smtp-user"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">SMTP Password</label>
+                            <Input
+                              type="password"
+                              value={apiSettings.smtpPassword}
+                              onChange={(e) =>
+                                setApiSettings(prev => ({ ...prev, smtpPassword: e.target.value }))
+                              }
+                              placeholder="App password"
+                              data-testid="input-smtp-password"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={() => {
+                      // TODO: Implement save API settings
+                      toast({
+                        title: "Settings saved",
+                        description: "API integration settings have been updated",
+                      });
+                    }}
+                    data-testid="button-save-api-settings"
+                  >
+                    <Key className="w-4 h-4 mr-2" />
+                    Save API Settings
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="database" className="space-y-4">

@@ -217,6 +217,7 @@ export const insertCandidateSchema = createInsertSchema(candidates).omit({
 
 export const insertResultSchema = createInsertSchema(results).omit({
   id: true,
+  totalVotes: true, // This is calculated in the backend
   createdAt: true,
   updatedAt: true,
   verifiedAt: true,

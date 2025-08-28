@@ -7,7 +7,8 @@ import {
   FileText, 
   Users, 
   History,
-  Settings
+  Settings,
+  User
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -19,6 +20,7 @@ const navigation = [
   { name: "User Management", href: "/user-management", icon: Users, roles: ["admin"] },
   { name: "Admin Management", href: "/admin-management", icon: Settings, roles: ["admin"] },
   { name: "Audit Trail", href: "/audit-trail", icon: History, roles: ["supervisor", "admin"] },
+  { name: "Profile", href: "/profile", icon: User, roles: ["agent", "supervisor", "admin"] },
 ];
 
 export default function Sidebar() {
