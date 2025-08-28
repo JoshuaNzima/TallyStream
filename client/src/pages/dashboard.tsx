@@ -21,12 +21,14 @@ export default function Dashboard() {
       totalResults: results?.length || 0,
       exportedBy: "Dashboard User",
     };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `election-report-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `election-report-${new Date().toISOString().split("T")[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -42,10 +44,15 @@ export default function Dashboard() {
       {/* Enhanced Dashboard Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900" data-testid="text-dashboard-title">
+          <h1
+            className="text-3xl font-bold text-gray-900"
+            data-testid="text-dashboard-title"
+          >
             Real-Time Election Center
           </h1>
-          <p className="text-gray-600 mt-1">Live monitoring and analytics for election results</p>
+          <p className="text-gray-600 mt-1">
+            Live monitoring and analytics for election results
+          </p>
         </div>
         <div className="flex space-x-2">
           <Button

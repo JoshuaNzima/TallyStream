@@ -13,10 +13,28 @@ export default function Reports() {
   });
 
   const handleExportCSV = () => {
-    // TODO: Implement CSV export
-    console.log("Exporting CSV...");
-  };
+    if (!results) return;
 
+    const headers = ["Center", "Candidate", "Votes", "Created At"];
+    const rows = results.map((r: any) => [
+      r.pollingCenter?.name,
+      r.candidate?.name,
+      r.votes,
+      r.createdAt,
+    ]);
+
+    const csvContent = [headers, ...rows].map((e) => e.join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "results.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
   const handleExportPDF = () => {
     // TODO: Implement PDF export
     console.log("Exporting PDF...");
@@ -25,10 +43,15 @@ export default function Reports() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900" data-testid="text-reports-title">
+        <h2
+          className="text-2xl font-bold text-gray-900"
+          data-testid="text-reports-title"
+        >
           Reports & Analytics
         </h2>
-        <p className="text-gray-600">Generate and export comprehensive election reports</p>
+        <p className="text-gray-600">
+          Generate and export comprehensive election reports
+        </p>
       </div>
 
       {/* Export Options */}
@@ -41,7 +64,7 @@ export default function Reports() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
-            <Button 
+            <Button
               onClick={handleExportCSV}
               variant="outline"
               data-testid="button-export-csv"
@@ -49,7 +72,7 @@ export default function Reports() {
               <FileText className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
-            <Button 
+            <Button
               onClick={handleExportPDF}
               variant="outline"
               data-testid="button-export-pdf"
@@ -80,13 +103,19 @@ export default function Reports() {
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Results Received:</span>
-                <span className="font-medium" data-testid="text-results-received">
+                <span
+                  className="font-medium"
+                  data-testid="text-results-received"
+                >
                   {stats?.resultsReceived || 0}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Completion Rate:</span>
-                <span className="font-medium text-green-600" data-testid="text-completion-rate">
+                <span
+                  className="font-medium text-green-600"
+                  data-testid="text-completion-rate"
+                >
                   {stats?.completionRate?.toFixed(1) || 0}%
                 </span>
               </div>
@@ -105,19 +134,30 @@ export default function Reports() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Verified:</span>
-                <span className="font-medium text-green-600" data-testid="text-verified-count">
+                <span
+                  className="font-medium text-green-600"
+                  data-testid="text-verified-count"
+                >
                   {stats?.verified || 0}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Flagged:</span>
-                <span className="font-medium text-red-600" data-testid="text-flagged-count">
+                <span
+                  className="font-medium text-red-600"
+                  data-testid="text-flagged-count"
+                >
                   {stats?.flagged || 0}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Verification Rate:</span>
-                <span className="font-medium text-green-600" data-testid="text-verification-rate">
+                <span className="text-sm text-gray-600">
+                  Verification Rate:
+                </span>
+                <span
+                  className="font-medium text-green-600"
+                  data-testid="text-verification-rate"
+                >
                   {stats?.verificationRate?.toFixed(1) || 0}%
                 </span>
               </div>
@@ -131,11 +171,13 @@ export default function Reports() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-600">
-              Last 24 hours: {results?.filter(r => {
+              Last 24 hours:{" "}
+              {results?.filter((r) => {
                 const yesterday = new Date();
                 yesterday.setDate(yesterday.getDate() - 1);
                 return new Date(r.createdAt) > yesterday;
-              }).length || 0} new submissions
+              }).length || 0}{" "}
+              new submissions
             </p>
           </CardContent>
         </Card>
