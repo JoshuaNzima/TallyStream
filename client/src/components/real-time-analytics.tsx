@@ -52,7 +52,7 @@ export function RealTimeAnalytics() {
     );
   }
 
-  const stats = currentAnalytics?.overview;
+  const stats = currentAnalytics?.overview || {};
 
   return (
     <div className="space-y-6" data-testid="real-time-analytics">
@@ -65,7 +65,7 @@ export function RealTimeAnalytics() {
           </span>
         </div>
         <div className="text-xs text-muted-foreground">
-          Last updated: {formatDistanceToNow(lastUpdate)} ago
+          Last updated: {lastUpdate ? formatDistanceToNow(lastUpdate, { addSuffix: true }) : 'Never'}
         </div>
       </div>
 

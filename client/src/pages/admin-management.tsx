@@ -25,10 +25,16 @@ export default function AdminManagement() {
   // API settings state
   const [apiSettings, setApiSettings] = useState({
     twoFaEnabled: false,
+    twoFaProvider: 'authenticator', // authenticator, twilio, google
     whatsappEnabled: false,
     passwordResetEnabled: true,
     whatsappApiKey: '',
     whatsappPhoneNumber: '',
+    twilioAccountSid: '',
+    twilioAuthToken: '',
+    twilioPhoneNumber: '',
+    googleClientId: '',
+    googleClientSecret: '',
     emailProvider: 'smtp',
     smtpHost: '',
     smtpPort: 587,
@@ -469,10 +475,104 @@ export default function AdminManagement() {
                       data-testid="checkbox-2fa-enabled"
                     />
                   </div>
-                  <p className="text-sm text-blue-600">
-                    <Shield className="w-4 h-4 inline mr-1" />
-                    When enabled, users will be required to set up 2FA using authenticator apps
-                  </p>
+                  {apiSettings.twoFaEnabled && (
+                    <div className="space-y-3 border-l-4 border-blue-500 pl-4">
+                      <div>
+                        <label className="text-sm font-medium">2FA Provider</label>
+                        <Select
+                          value={apiSettings.twoFaProvider}
+                          onValueChange={(value) =>
+                            setApiSettings(prev => ({ ...prev, twoFaProvider: value }))
+                          }
+                        >
+                          <SelectTrigger data-testid="select-2fa-provider">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="authenticator">Authenticator Apps (TOTP)</SelectItem>
+                            <SelectItem value="twilio">Twilio SMS</SelectItem>
+                            <SelectItem value="google">Google Authenticator</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {apiSettings.twoFaProvider === 'twilio' && (
+                        <div className="grid grid-cols-1 gap-3">
+                          <div>
+                            <label className="text-sm font-medium">Twilio Account SID</label>
+                            <Input
+                              value={apiSettings.twilioAccountSid}
+                              onChange={(e) =>
+                                setApiSettings(prev => ({ ...prev, twilioAccountSid: e.target.value }))
+                              }
+                              placeholder="AC..."
+                              data-testid="input-twilio-sid"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Twilio Auth Token</label>
+                            <Input
+                              type="password"
+                              value={apiSettings.twilioAuthToken}
+                              onChange={(e) =>
+                                setApiSettings(prev => ({ ...prev, twilioAuthToken: e.target.value }))
+                              }
+                              placeholder="Your auth token"
+                              data-testid="input-twilio-token"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Twilio Phone Number</label>
+                            <Input
+                              value={apiSettings.twilioPhoneNumber}
+                              onChange={(e) =>
+                                setApiSettings(prev => ({ ...prev, twilioPhoneNumber: e.target.value }))
+                              }
+                              placeholder="+1234567890"
+                              data-testid="input-twilio-phone"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {apiSettings.twoFaProvider === 'google' && (
+                        <div className="grid grid-cols-1 gap-3">
+                          <div>
+                            <label className="text-sm font-medium">Google Client ID</label>
+                            <Input
+                              value={apiSettings.googleClientId}
+                              onChange={(e) =>
+                                setApiSettings(prev => ({ ...prev, googleClientId: e.target.value }))
+                              }
+                              placeholder="Your Google OAuth Client ID"
+                              data-testid="input-google-client-id"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Google Client Secret</label>
+                            <Input
+                              type="password"
+                              value={apiSettings.googleClientSecret}
+                              onChange={(e) =>
+                                setApiSettings(prev => ({ ...prev, googleClientSecret: e.target.value }))
+                              }
+                              placeholder="Your Google OAuth Client Secret"
+                              data-testid="input-google-client-secret"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <p className="text-sm text-blue-600">
+                        <Shield className="w-4 h-4 inline mr-1" />
+                        When enabled, users will be required to set up 2FA using {
+                          apiSettings.twoFaProvider === 'authenticator' ? 'authenticator apps' :
+                          apiSettings.twoFaProvider === 'twilio' ? 'SMS verification' :
+                          'Google Authenticator'
+                        }
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

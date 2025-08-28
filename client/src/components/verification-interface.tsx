@@ -109,9 +109,36 @@ export default function VerificationInterface() {
                       <div>
                         <p className="text-gray-600 mb-1">Submission Details:</p>
                         <div className="bg-gray-100 p-2 rounded">
-                          <p data-testid={`verification-votes-${result.id}`}>
-                            A: {result.candidateAVotes} | B: {result.candidateBVotes} | C: {result.candidateCVotes}
-                          </p>
+                          <div data-testid={`verification-votes-${result.id}`}>
+                            <p className="font-medium text-sm">Category: {result.category}</p>
+                            {result.category === 'president' && result.presidentialVotes && (
+                              <div className="mt-1">
+                                {Object.entries(result.presidentialVotes).map(([candidateId, votes]: [string, any]) => (
+                                  <span key={candidateId} className="text-xs mr-2">
+                                    {candidateId}: {votes || 0}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {result.category === 'mp' && result.mpVotes && (
+                              <div className="mt-1">
+                                {Object.entries(result.mpVotes).map(([candidateId, votes]: [string, any]) => (
+                                  <span key={candidateId} className="text-xs mr-2">
+                                    {candidateId}: {votes || 0}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {result.category === 'councilor' && result.councilorVotes && (
+                              <div className="mt-1">
+                                {Object.entries(result.councilorVotes).map(([candidateId, votes]: [string, any]) => (
+                                  <span key={candidateId} className="text-xs mr-2">
+                                    {candidateId}: {votes || 0}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500 mt-1" data-testid={`verification-submitter-${result.id}`}>
                             Submitted by {result.submitter?.firstName} {result.submitter?.lastName} - {formatDistanceToNow(new Date(result.createdAt), { addSuffix: true })}
                           </p>
@@ -121,10 +148,13 @@ export default function VerificationInterface() {
                         <p className="text-gray-600 mb-1">Total Votes:</p>
                         <div className="bg-gray-100 p-2 rounded">
                           <p data-testid={`verification-total-${result.id}`}>
-                            Valid: {result.candidateAVotes + result.candidateBVotes + result.candidateCVotes}
+                            Valid: {result.totalVotes - (result.invalidVotes || 0)}
                           </p>
                           <p data-testid={`verification-invalid-${result.id}`}>
-                            Invalid: {result.invalidVotes}
+                            Invalid: {result.invalidVotes || 0}
+                          </p>
+                          <p className="font-medium">
+                            Total: {result.totalVotes || 0}
                           </p>
                         </div>
                       </div>
