@@ -24,7 +24,10 @@ interface RegisterData {
 
 export default function Login() {
   const { user, isLoading } = useAuth();
-  const [loginData, setLoginData] = useState<LoginData>({ identifier: "", password: "" });
+  const [loginData, setLoginData] = useState<LoginData>({
+    identifier: "",
+    password: "",
+  });
   const [registerData, setRegisterData] = useState<RegisterData>({
     email: "",
     phone: "",
@@ -132,18 +135,24 @@ export default function Login() {
             <div className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <Vote className="text-white h-8 w-8" />
             </div>
-            <CardTitle className="text-2xl font-bold">Parallel Tally Center</CardTitle>
+            <CardTitle className="text-2xl font-bold">
+              Parallel Tally Center
+            </CardTitle>
             <p className="text-gray-600">Secure Election Management System</p>
           </CardHeader>
           <CardContent>
             {error && (
               <Alert className="mb-4 border-red-200 bg-red-50">
-                <AlertDescription className="text-red-700">{error}</AlertDescription>
+                <AlertDescription className="text-red-700">
+                  {error}
+                </AlertDescription>
               </Alert>
             )}
             {success && (
               <Alert className="mb-4 border-green-200 bg-green-50">
-                <AlertDescription className="text-green-700">{success}</AlertDescription>
+                <AlertDescription className="text-green-700">
+                  {success}
+                </AlertDescription>
               </Alert>
             )}
 
@@ -162,7 +171,12 @@ export default function Login() {
                       type="text"
                       placeholder="Enter your email or phone number"
                       value={loginData.identifier}
-                      onChange={(e) => setLoginData({ ...loginData, identifier: e.target.value })}
+                      onChange={(e) =>
+                        setLoginData({
+                          ...loginData,
+                          identifier: e.target.value,
+                        })
+                      }
                       required
                     />
                   </div>
@@ -174,7 +188,12 @@ export default function Login() {
                         type={showPassword ? "text" : "password"}
                         placeholder="Enter your password"
                         value={loginData.password}
-                        onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                        onChange={(e) =>
+                          setLoginData({
+                            ...loginData,
+                            password: e.target.value,
+                          })
+                        }
                         required
                       />
                       <button
@@ -182,11 +201,19 @@ export default function Login() {
                         className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
                         onClick={() => setShowPassword(!showPassword)}
                       >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                   </div>
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
                     {isSubmitting ? "Signing in..." : "Sign In"}
                   </Button>
                 </form>
@@ -202,7 +229,12 @@ export default function Login() {
                         type="text"
                         placeholder="First name"
                         value={registerData.firstName}
-                        onChange={(e) => setRegisterData({ ...registerData, firstName: e.target.value })}
+                        onChange={(e) =>
+                          setRegisterData({
+                            ...registerData,
+                            firstName: e.target.value,
+                          })
+                        }
                         required
                       />
                     </div>
@@ -213,7 +245,12 @@ export default function Login() {
                         type="text"
                         placeholder="Last name"
                         value={registerData.lastName}
-                        onChange={(e) => setRegisterData({ ...registerData, lastName: e.target.value })}
+                        onChange={(e) =>
+                          setRegisterData({
+                            ...registerData,
+                            lastName: e.target.value,
+                          })
+                        }
                         required
                       />
                     </div>
@@ -225,7 +262,12 @@ export default function Login() {
                       type="email"
                       placeholder="your.email@example.com"
                       value={registerData.email}
-                      onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                      onChange={(e) =>
+                        setRegisterData({
+                          ...registerData,
+                          email: e.target.value,
+                        })
+                      }
                     />
                   </div>
                   <div>
@@ -233,12 +275,19 @@ export default function Login() {
                     <Input
                       id="phone"
                       type="tel"
-                      placeholder="+234XXXXXXXXXX"
+                      placeholder="+265XXXXXXXXXX"
                       value={registerData.phone}
-                      onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
+                      onChange={(e) =>
+                        setRegisterData({
+                          ...registerData,
+                          phone: e.target.value,
+                        })
+                      }
                     />
                   </div>
-                  <p className="text-sm text-gray-600">At least one of email or phone is required</p>
+                  <p className="text-sm text-gray-600">
+                    At least one of email or phone is required
+                  </p>
                   <div>
                     <Label htmlFor="registerPassword">Password</Label>
                     <div className="relative">
@@ -247,7 +296,12 @@ export default function Login() {
                         type={showPassword ? "text" : "password"}
                         placeholder="Create a strong password"
                         value={registerData.password}
-                        onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                        onChange={(e) =>
+                          setRegisterData({
+                            ...registerData,
+                            password: e.target.value,
+                          })
+                        }
                         required
                         minLength={8}
                       />
@@ -256,7 +310,11 @@ export default function Login() {
                         className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
                         onClick={() => setShowPassword(!showPassword)}
                       >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -268,20 +326,35 @@ export default function Login() {
                         type={showConfirmPassword ? "text" : "password"}
                         placeholder="Confirm your password"
                         value={registerData.confirmPassword}
-                        onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
+                        onChange={(e) =>
+                          setRegisterData({
+                            ...registerData,
+                            confirmPassword: e.target.value,
+                          })
+                        }
                         required
                         minLength={8}
                       />
                       <button
                         type="button"
                         className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
                       >
-                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                   </div>
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
                     {isSubmitting ? "Creating account..." : "Create Account"}
                   </Button>
                 </form>
@@ -290,7 +363,8 @@ export default function Login() {
 
             <div className="mt-6 text-center">
               <p className="text-xs text-gray-500">
-                Authorized personnel only. All activities are logged and monitored.
+                Authorized personnel only. All activities are logged and
+                monitored.
               </p>
             </div>
           </CardContent>
