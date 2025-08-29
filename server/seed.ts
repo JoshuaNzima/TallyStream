@@ -27,26 +27,80 @@ export async function seedDatabase() {
       console.log("✓ Admin user already exists");
     }
 
+    // Check if political parties already exist
+    const existingParties = await storage.getPoliticalParties();
+    
+    if (existingParties.length === 0) {
+      await storage.createPoliticalParty({
+        name: "Democratic Progressive Party (DPP)",
+        abbreviation: "DPP",
+        color: "#1D4ED8", 
+        description: "Progressive political party focused on democratic values and development"
+      });
+
+      await storage.createPoliticalParty({
+        name: "People's Liberation Party (PLP)",
+        abbreviation: "PLP",
+        color: "#DC2626",
+        description: "Liberation movement focused on social justice and equality"
+      });
+
+      await storage.createPoliticalParty({
+        name: "Unity Development Alliance (UDA)",
+        abbreviation: "UDA",
+        color: "#059669",
+        description: "Alliance promoting national unity and development"
+      });
+
+      await storage.createPoliticalParty({
+        name: "Malawi Congress Party (MCP)",
+        abbreviation: "MCP",
+        color: "#7C3AED",
+        description: "Malawi's oldest political party with focus on national development"
+      });
+
+      await storage.createPoliticalParty({
+        name: "United Democratic Front (UDF)",
+        abbreviation: "UDF",
+        color: "#EA580C",
+        description: "Democratic front promoting multiparty governance"
+      });
+
+      console.log("✓ Created political parties");
+    } else {
+      console.log("✓ Political parties already exist");
+    }
+
     // Check if candidates already exist
     const existingCandidates = await storage.getCandidates();
     
     if (existingCandidates.length === 0) {
+      // Get parties for candidate seeding
+      const parties = await storage.getPoliticalParties();
+      const dppParty = parties.find(p => p.abbreviation === "DPP");
+      const plpParty = parties.find(p => p.abbreviation === "PLP");
+      const udaParty = parties.find(p => p.abbreviation === "UDA");
+      const mcpParty = parties.find(p => p.abbreviation === "MCP");
+      const udfParty = parties.find(p => p.abbreviation === "UDF");
       // Create presidential candidates
       await storage.createCandidate({
         name: "John Presidential",
         party: "Democratic Progressive Party (DPP)",
+        partyId: dppParty?.id,
         category: "president",
       });
 
       await storage.createCandidate({
         name: "Mary National", 
         party: "People's Liberation Party (PLP)",
+        partyId: plpParty?.id,
         category: "president",
       });
 
       await storage.createCandidate({
         name: "Samuel Unity",
-        party: "Unity Development Alliance (UDA)", 
+        party: "Unity Development Alliance (UDA)",
+        partyId: udaParty?.id, 
         category: "president",
       });
 
@@ -54,6 +108,7 @@ export async function seedDatabase() {
       await storage.createCandidate({
         name: "David Mchazime",
         party: "Malawi Congress Party (MCP)",
+        partyId: mcpParty?.id,
         category: "mp",
         constituency: "Lilongwe City Centre",
       });
@@ -61,6 +116,7 @@ export async function seedDatabase() {
       await storage.createCandidate({
         name: "Sarah Banda",
         party: "Democratic Progressive Party (DPP)",
+        partyId: dppParty?.id,
         category: "mp",
         constituency: "Lilongwe City Centre", 
       });
@@ -68,6 +124,7 @@ export async function seedDatabase() {
       await storage.createCandidate({
         name: "Michael Phiri",
         party: "United Democratic Front (UDF)",
+        partyId: udfParty?.id,
         category: "mp",
         constituency: "Blantyre City South",
       });
@@ -75,7 +132,8 @@ export async function seedDatabase() {
       // Create Councilor candidates
       await storage.createCandidate({
         name: "Grace Mwale",
-        party: "Malawi Congress Party (MCP)", 
+        party: "Malawi Congress Party (MCP)",
+        partyId: mcpParty?.id, 
         category: "councilor",
         constituency: "Lilongwe Ward 1",
       });
@@ -83,6 +141,7 @@ export async function seedDatabase() {
       await storage.createCandidate({
         name: "Peter Kachali",
         party: "Democratic Progressive Party (DPP)",
+        partyId: dppParty?.id,
         category: "councilor",
         constituency: "Blantyre Ward 2",
       });
@@ -90,6 +149,7 @@ export async function seedDatabase() {
       await storage.createCandidate({
         name: "Ruth Ngwira",
         party: "United Democratic Front (UDF)",
+        partyId: udfParty?.id,
         category: "councilor", 
         constituency: "Mzuzu Ward 3",
       });

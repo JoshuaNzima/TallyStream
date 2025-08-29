@@ -70,11 +70,24 @@ export const pollingCenters = pgTable("polling_centers", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Political parties table
+export const politicalParties = pgTable("political_parties", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").unique().notNull(),
+  abbreviation: varchar("abbreviation").unique(),
+  color: varchar("color"), // Hex color code for UI
+  description: text("description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Candidates table
 export const candidates = pgTable("candidates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
-  party: varchar("party").notNull(),
+  partyId: varchar("party_id").references(() => politicalParties.id),
+  party: varchar("party").notNull(), // Keep for backward compatibility
   category: candidateCategoryEnum("category").notNull(),
   constituency: varchar("constituency"), // For MPs and Councilors
   isActive: boolean("is_active").default(true).notNull(),
@@ -145,6 +158,19 @@ export const pollingCentersRelations = relations(pollingCenters, ({ many }) => (
   results: many(results),
 }));
 
+// Political parties relations
+export const politicalPartiesRelations = relations(politicalParties, ({ many }) => ({
+  candidates: many(candidates),
+}));
+
+// Candidates relations
+export const candidatesRelations = relations(candidates, ({ one }) => ({
+  party: one(politicalParties, {
+    fields: [candidates.partyId],
+    references: [politicalParties.id],
+  }),
+}));
+
 export const resultsRelations = relations(results, ({ one, many }) => ({
   pollingCenter: one(pollingCenters, {
     fields: [results.pollingCenterId],
@@ -176,6 +202,12 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const insertPoliticalPartySchema = createInsertSchema(politicalParties).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -239,6 +271,8 @@ export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type PollingCenter = typeof pollingCenters.$inferSelect;
 export type InsertPollingCenter = z.infer<typeof insertPollingCenterSchema>;
+export type PoliticalParty = typeof politicalParties.$inferSelect;
+export type InsertPoliticalParty = z.infer<typeof insertPoliticalPartySchema>;
 export type Candidate = typeof candidates.$inferSelect;
 export type InsertCandidate = z.infer<typeof insertCandidateSchema>;
 export type Result = typeof results.$inferSelect;

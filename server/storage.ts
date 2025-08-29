@@ -5,10 +5,13 @@ import {
   results,
   resultFiles,
   auditLogs,
+  politicalParties,
   type User,
   type UpsertUser,
   type PollingCenter,
   type InsertPollingCenter,
+  type PoliticalParty,
+  type InsertPoliticalParty,
   type Candidate,
   type InsertCandidate,
   type Result,
@@ -39,6 +42,12 @@ export interface IStorage {
   getPollingCenters(): Promise<PollingCenter[]>;
   getPollingCenter(id: string): Promise<PollingCenter | undefined>;
   createPollingCenter(center: InsertPollingCenter): Promise<PollingCenter>;
+  
+  // Political party operations
+  getPoliticalParties(): Promise<PoliticalParty[]>;
+  createPoliticalParty(party: InsertPoliticalParty): Promise<PoliticalParty>;
+  updatePoliticalParty(id: string, party: Partial<InsertPoliticalParty>): Promise<PoliticalParty>;
+  deactivatePoliticalParty(id: string): Promise<PoliticalParty>;
   
   // Candidate operations
   getCandidates(): Promise<Candidate[]>;
@@ -187,6 +196,38 @@ export class DatabaseStorage implements IStorage {
   async createPollingCenter(center: InsertPollingCenter): Promise<PollingCenter> {
     const [newCenter] = await db.insert(pollingCenters).values(center).returning();
     return newCenter;
+  }
+
+  // Political party operations
+  async getPoliticalParties(): Promise<PoliticalParty[]> {
+    return await db.select().from(politicalParties).where(eq(politicalParties.isActive, true)).orderBy(politicalParties.name);
+  }
+
+  async createPoliticalParty(party: InsertPoliticalParty): Promise<PoliticalParty> {
+    const [newParty] = await db.insert(politicalParties).values({
+      ...party,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return newParty;
+  }
+
+  async updatePoliticalParty(id: string, party: Partial<InsertPoliticalParty>): Promise<PoliticalParty> {
+    const [updatedParty] = await db
+      .update(politicalParties)
+      .set({ ...party, updatedAt: new Date() })
+      .where(eq(politicalParties.id, id))
+      .returning();
+    return updatedParty;
+  }
+
+  async deactivatePoliticalParty(id: string): Promise<PoliticalParty> {
+    const [deactivatedParty] = await db
+      .update(politicalParties)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(politicalParties.id, id))
+      .returning();
+    return deactivatedParty;
   }
 
   // Candidate operations
@@ -393,13 +434,40 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Analytics operations for real-time dashboard
-  async getRecentSubmissions(limit: number): Promise<ResultWithRelations[]> {
-    return await db.select()
+  async getRecentSubmissions(limit: number): Promise<Array<{
+    id: string;
+    status: string;
+    pollingCenter: { name: string };
+    submitter: { firstName: string; lastName: string };
+    totalVotes: number;
+    createdAt: Date;
+  }>> {
+    const submissions = await db.select({
+      id: results.id,
+      status: results.status,
+      totalVotes: results.totalVotes,
+      createdAt: results.createdAt,
+      pollingCenterName: pollingCenters.name,
+      submitterFirstName: users.firstName,
+      submitterLastName: users.lastName,
+    })
       .from(results)
       .leftJoin(pollingCenters, eq(results.pollingCenterId, pollingCenters.id))
       .leftJoin(users, eq(results.submittedBy, users.id))
       .orderBy(desc(results.createdAt))
-      .limit(limit) as any[];
+      .limit(limit);
+
+    return submissions.map(submission => ({
+      id: submission.id,
+      status: submission.status,
+      pollingCenter: { name: submission.pollingCenterName || 'Unknown Center' },
+      submitter: { 
+        firstName: submission.submitterFirstName || 'Unknown', 
+        lastName: submission.submitterLastName || 'User' 
+      },
+      totalVotes: submission.totalVotes || 0,
+      createdAt: submission.createdAt,
+    }));
   }
 
   async getPendingVerifications(): Promise<ResultWithRelations[]> {

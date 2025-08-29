@@ -8,7 +8,7 @@ import bcrypt from "bcryptjs";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, hashPassword, validateRegister, validateLogin } from "./auth";
 import passport from "passport";
-import { insertResultSchema, insertPollingCenterSchema, insertCandidateSchema } from "@shared/schema";
+import { insertResultSchema, insertPollingCenterSchema, insertCandidateSchema, insertPoliticalPartySchema } from "@shared/schema";
 import { seedDatabase } from "./seed";
 
 // Configure multer for file uploads
@@ -336,6 +336,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Candidates
+  // Political parties routes
+  app.get("/api/political-parties", isAuthenticated, async (req, res) => {
+    try {
+      const parties = await storage.getPoliticalParties();
+      res.json(parties);
+    } catch (error) {
+      console.error("Error fetching political parties:", error);
+      res.status(500).json({ message: "Failed to fetch political parties" });
+    }
+  });
+
+  app.post("/api/political-parties", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (user?.role !== 'admin' && user?.role !== 'supervisor') {
+        return res.status(403).json({ message: "Access denied. Admin or supervisor role required." });
+      }
+
+      const validatedData = insertPoliticalPartySchema.parse(req.body);
+      const party = await storage.createPoliticalParty(validatedData);
+      
+      // Log the action
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'create',
+        entityType: 'political_party',
+        entityId: party.id,
+        newValues: JSON.stringify(party),
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      res.status(201).json(party);
+    } catch (error) {
+      console.error("Error creating political party:", error);
+      res.status(400).json({ message: "Failed to create political party" });
+    }
+  });
+
   app.get("/api/candidates", isAuthenticated, async (req, res) => {
     try {
       const candidates = await storage.getCandidates();

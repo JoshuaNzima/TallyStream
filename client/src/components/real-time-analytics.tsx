@@ -43,11 +43,20 @@ export function RealTimeAnalytics() {
   const { analytics, isConnected, requestAnalytics } = useWebSocket();
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
-  // Fetch initial analytics
-  const { data: initialAnalytics, isLoading } = useQuery({
+  // Fetch initial analytics with 1-second refresh for real-time feel
+  const { data: initialAnalytics, isLoading, refetch } = useQuery({
     queryKey: ["/api/analytics"],
-    refetchInterval: 30000, // Fallback refresh every 30 seconds
+    refetchInterval: 1000, // Real-time refresh every 1 second
   });
+
+  // Auto-refresh every second for live analytics
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetch();
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [refetch]);
 
   // Use WebSocket analytics if available, otherwise use query data
   const currentAnalytics = analytics || initialAnalytics || {};
@@ -304,8 +313,8 @@ export function RealTimeAnalytics() {
                           {activity.pollingCenter?.name || "Unknown Center"}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {activity.candidate?.name || "Unknown Candidate"} -{" "}
-                          {activity.votes} votes
+                          By {activity.submitter?.firstName || "Unknown"} {activity.submitter?.lastName || "User"} -{" "}
+                          {activity.totalVotes || 0} votes
                         </p>
                       </div>
                     </div>
