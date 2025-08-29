@@ -28,8 +28,9 @@ export default function AdminManagement() {
     twoFaProvider: 'authenticator', // authenticator, twilio, google
     whatsappEnabled: false,
     passwordResetEnabled: true,
-    whatsappApiKey: '',
-    whatsappPhoneNumber: '',
+    whatsappToken: '',
+    whatsappPhoneNumberId: '',
+    whatsappWebhookVerifyToken: '',
     twilioAccountSid: '',
     twilioAuthToken: '',
     twilioPhoneNumber: '',
@@ -118,6 +119,27 @@ export default function AdminManagement() {
       toast({
         title: "Error",
         description: "Failed to add polling center",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Save API settings mutation
+  const saveApiSettingsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/api-settings", apiSettings);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Settings saved",
+        description: "API integration settings have been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save API settings",
         variant: "destructive",
       });
     },
@@ -604,29 +626,70 @@ export default function AdminManagement() {
                   </div>
 
                   {apiSettings.whatsappEnabled && (
-                    <div className="space-y-3 border-l-4 border-green-500 pl-4">
+                    <div className="space-y-4 border-l-4 border-green-500 pl-4 bg-green-50 p-4 rounded-lg">
+                      <div className="text-sm text-green-800 mb-3">
+                        <p className="font-medium">WhatsApp Business API Configuration</p>
+                        <p>Configure your Meta WhatsApp Business Platform credentials to enable bot functionality.</p>
+                      </div>
+                      
                       <div>
-                        <label className="text-sm font-medium">WhatsApp API Key</label>
+                        <label className="text-sm font-medium text-green-900">Access Token</label>
                         <Input
                           type="password"
-                          value={apiSettings.whatsappApiKey}
+                          value={apiSettings.whatsappToken}
                           onChange={(e) =>
-                            setApiSettings(prev => ({ ...prev, whatsappApiKey: e.target.value }))
+                            setApiSettings(prev => ({ ...prev, whatsappToken: e.target.value }))
                           }
-                          placeholder="Enter WhatsApp Business API key"
-                          data-testid="input-whatsapp-api-key"
+                          placeholder="Permanent access token from Meta Business"
+                          data-testid="input-whatsapp-token"
+                          className="mt-1"
                         />
+                        <p className="text-xs text-green-700 mt-1">
+                          Get this from developers.facebook.com/apps → Your App → WhatsApp → Configuration
+                        </p>
                       </div>
+                      
                       <div>
-                        <label className="text-sm font-medium">WhatsApp Phone Number</label>
+                        <label className="text-sm font-medium text-green-900">Phone Number ID</label>
                         <Input
-                          value={apiSettings.whatsappPhoneNumber}
+                          value={apiSettings.whatsappPhoneNumberId}
                           onChange={(e) =>
-                            setApiSettings(prev => ({ ...prev, whatsappPhoneNumber: e.target.value }))
+                            setApiSettings(prev => ({ ...prev, whatsappPhoneNumberId: e.target.value }))
                           }
-                          placeholder="+1234567890"
-                          data-testid="input-whatsapp-phone"
+                          placeholder="Phone number ID from WhatsApp Business"
+                          data-testid="input-whatsapp-phone-id"
+                          className="mt-1"
                         />
+                        <p className="text-xs text-green-700 mt-1">
+                          Found in WhatsApp Business API → Phone Numbers section
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium text-green-900">Webhook Verify Token</label>
+                        <Input
+                          type="password"
+                          value={apiSettings.whatsappWebhookVerifyToken}
+                          onChange={(e) =>
+                            setApiSettings(prev => ({ ...prev, whatsappWebhookVerifyToken: e.target.value }))
+                          }
+                          placeholder="Custom secure token for webhook verification"
+                          data-testid="input-whatsapp-verify-token"
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-green-700 mt-1">
+                          Create a secure random string to verify webhook calls from Meta
+                        </p>
+                      </div>
+                      
+                      <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
+                        <p className="font-medium text-blue-900 mb-1">Webhook URL:</p>
+                        <code className="text-blue-800 bg-blue-100 px-2 py-1 rounded">
+                          {window.location.origin}/api/whatsapp/webhook
+                        </code>
+                        <p className="text-blue-700 mt-1 text-xs">
+                          Configure this URL in your WhatsApp Business Platform webhook settings
+                        </p>
                       </div>
                     </div>
                   )}
@@ -734,13 +797,8 @@ export default function AdminManagement() {
                   )}
 
                   <Button
-                    onClick={() => {
-                      // TODO: Implement save API settings
-                      toast({
-                        title: "Settings saved",
-                        description: "API integration settings have been updated",
-                      });
-                    }}
+                    onClick={() => saveApiSettingsMutation.mutate()}
+                    disabled={saveApiSettingsMutation.isPending}
                     data-testid="button-save-api-settings"
                   >
                     <Key className="w-4 h-4 mr-2" />

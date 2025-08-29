@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Download, RefreshCw } from "lucide-react";
 import { RealTimeAnalytics } from "@/components/real-time-analytics";
+import PartyPerformanceChart from "@/components/party-performance-chart";
 
 export default function Dashboard() {
   // Fetch polling centers for export functionality
@@ -75,6 +76,9 @@ export default function Dashboard() {
 
       {/* Real-Time Analytics Component */}
       <RealTimeAnalytics />
+      
+      {/* Party Performance Chart */}
+      <PartyPerformanceChart />
     </div>
   );
 }

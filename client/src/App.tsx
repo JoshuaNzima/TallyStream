@@ -14,6 +14,7 @@ import Reports from "@/pages/reports";
 import UserManagement from "@/pages/user-management";
 import AuditTrail from "@/pages/audit-trail";
 import AdminManagement from "@/pages/admin-management";
+import ReviewFlagged from "@/pages/review-flagged";
 import Profile from "@/pages/profile";
 import Navigation from "@/components/navigation";
 import Sidebar from "@/components/sidebar";
@@ -40,6 +41,7 @@ function Router() {
                   <Route path="/reports" component={Reports} />
                   <Route path="/user-management" component={UserManagement} />
                   <Route path="/admin-management" component={AdminManagement} />
+                  <Route path="/review-flagged" component={ReviewFlagged} />
                   <Route path="/audit-trail" component={AuditTrail} />
                   <Route path="/profile" component={Profile} />
                   <Route component={NotFound} />

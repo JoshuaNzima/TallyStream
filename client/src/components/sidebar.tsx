@@ -8,19 +8,21 @@ import {
   Users, 
   History,
   Settings,
-  User
+  User,
+  AlertTriangle
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: BarChart3, roles: ["agent", "supervisor", "admin"] },
+  { name: "Dashboard", href: "/", icon: BarChart3, roles: ["agent", "supervisor", "admin", "reviewer"] },
   { name: "Submit Results", href: "/submit-results", icon: Plus, roles: ["agent", "supervisor", "admin"] },
   { name: "Verify Results", href: "/verify-results", icon: CheckCircle, roles: ["supervisor", "admin"] },
-  { name: "Reports", href: "/reports", icon: FileText, roles: ["supervisor", "admin"] },
+  { name: "Review Flagged", href: "/review-flagged", icon: AlertTriangle, roles: ["reviewer", "admin"] },
+  { name: "Reports", href: "/reports", icon: FileText, roles: ["supervisor", "admin", "reviewer"] },
   { name: "User Management", href: "/user-management", icon: Users, roles: ["admin"] },
   { name: "Admin Management", href: "/admin-management", icon: Settings, roles: ["admin"] },
-  { name: "Audit Trail", href: "/audit-trail", icon: History, roles: ["supervisor", "admin"] },
-  { name: "Profile", href: "/profile", icon: User, roles: ["agent", "supervisor", "admin"] },
+  { name: "Audit Trail", href: "/audit-trail", icon: History, roles: ["supervisor", "admin", "reviewer"] },
+  { name: "Profile", href: "/profile", icon: User, roles: ["agent", "supervisor", "admin", "reviewer"] },
 ];
 
 export default function Sidebar() {
@@ -28,7 +30,7 @@ export default function Sidebar() {
   const { user } = useAuth();
 
   const filteredNavigation = navigation.filter(item => 
-    item.roles.includes(user?.role || "agent")
+    item.roles.includes((user?.role as any) || "agent")
   );
 
   return (

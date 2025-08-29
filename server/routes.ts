@@ -267,6 +267,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get party performance data
+  app.get("/api/party-performance", isAuthenticated, async (req, res) => {
+    try {
+      const { category } = req.query;
+      const partyPerformance = await storage.getPartyPerformance(category as any);
+      res.json(partyPerformance);
+    } catch (error) {
+      console.error("Error fetching party performance:", error);
+      res.status(500).json({ message: "Failed to fetch party performance data" });
+    }
+  });
+
   // Real-time analytics endpoint
   app.get("/api/analytics", isAuthenticated, async (req, res) => {
     try {
@@ -422,7 +434,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Verify/approve results
+  // Review flagged/rejected results (reviewers and admins only)
+  app.patch("/api/results/:id/review", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (user?.role !== 'reviewer' && user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied. Reviewer or admin role required." });
+      }
+
+      const { action, comments } = req.body;
+      const resultId = req.params.id;
+      
+      let status;
+      switch (action) {
+        case 'approve':
+          status = 'verified';
+          break;
+        case 'reject':
+          status = 'rejected';
+          break;
+        case 'flag_for_further_review':
+          status = 'flagged';
+          break;
+        default:
+          return res.status(400).json({ message: "Invalid action. Use 'approve', 'reject', or 'flag_for_further_review'." });
+      }
+
+      const updatedResult = await storage.updateResultStatus(
+        resultId,
+        status,
+        user.id,
+        comments
+      );
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "REVIEW",
+        entityType: "result",
+        entityId: resultId,
+        newValues: { status, reviewedBy: user.id, reviewComments: comments, reviewAction: action },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      // Broadcast real-time updates
+      broadcastUpdate("RESULT_REVIEWED", updatedResult);
+      
+      // Get and broadcast updated analytics
+      const analytics = await getRealTimeAnalytics();
+      if (analytics) {
+        broadcastUpdate("ANALYTICS_UPDATE", analytics);
+      }
+
+      res.json(updatedResult);
+    } catch (error) {
+      console.error("Error reviewing result:", error);
+      res.status(400).json({ message: "Failed to review result" });
+    }
+  });
+
+  // Verify/approve results (supervisors and admins only)
   app.patch("/api/results/:id/status", isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
@@ -517,7 +589,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/audit-logs", isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
-      if (user?.role !== 'admin' && user?.role !== 'supervisor') {
+      if (user?.role !== 'admin' && user?.role !== 'supervisor' && user?.role !== 'reviewer') {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -660,6 +732,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error cleaning database:", error);
       res.status(500).json({ message: "Failed to clean database" });
+    }
+  });
+
+  // API Settings endpoints
+  app.post("/api/admin/api-settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = req.user;
+      if (currentUser?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const settings = req.body;
+      
+      // In a real implementation, you'd save these to a settings table
+      // For now, we'll just validate and return success
+      // You could store these in environment variables or a dedicated settings table
+      
+      // Log audit
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: "UPDATE",
+        entityType: "settings",
+        entityId: "api_settings",
+        newValues: { settingsUpdated: true, whatsappEnabled: settings.whatsappEnabled },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json({ message: "API settings saved successfully" });
+    } catch (error) {
+      console.error("Error saving API settings:", error);
+      res.status(500).json({ message: "Failed to save API settings" });
+    }
+  });
+
+  // WhatsApp webhook endpoints
+  app.get("/api/whatsapp/webhook", (req, res) => {
+    const mode = req.query["hub.mode"];
+    const token = req.query["hub.verify_token"];
+    const challenge = req.query["hub.challenge"];
+
+    // Verify the webhook (you'd use the actual verify token from settings)
+    if (mode === "subscribe" && token === process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN) {
+      console.log("WhatsApp webhook verified successfully");
+      res.status(200).send(challenge);
+    } else {
+      console.error("WhatsApp webhook verification failed");
+      res.sendStatus(403);
+    }
+  });
+
+  app.post("/api/whatsapp/webhook", async (req, res) => {
+    try {
+      const body = req.body;
+
+      // Process incoming WhatsApp messages
+      if (body.object === "whatsapp_business_account") {
+        body.entry?.forEach((entry: any) => {
+          entry.changes?.forEach((change: any) => {
+            if (change.field === "messages") {
+              const messages = change.value.messages;
+              messages?.forEach(async (message: any) => {
+                console.log("Received WhatsApp message:", message);
+                
+                // Here you would process the message and extract election data
+                // For now, we'll just log it and send a response
+                if (message.type === "text") {
+                  const phoneNumber = message.from;
+                  const messageText = message.text.body;
+                  
+                  // Process election results from message
+                  // This is where you'd parse results and create database entries
+                  
+                  console.log(`Message from ${phoneNumber}: ${messageText}`);
+                }
+              });
+            }
+          });
+        });
+      }
+
+      res.status(200).send("EVENT_RECEIVED");
+    } catch (error) {
+      console.error("Error processing WhatsApp webhook:", error);
+      res.status(500).json({ message: "Failed to process webhook" });
     }
   });
 

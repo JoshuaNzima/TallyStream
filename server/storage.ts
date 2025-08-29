@@ -20,6 +20,7 @@ import {
   type InsertAuditLog,
   type UserRole,
   type ResultStatus,
+  type CandidateCategory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, count, sql } from "drizzle-orm";
@@ -76,6 +77,15 @@ export interface IStorage {
     hour: string;
     submissions: number;
     verifications: number;
+  }>>;
+  
+  // Party performance data for dashboard charts
+  getPartyPerformance(category?: CandidateCategory): Promise<Array<{
+    party: string;
+    totalVotes: number;
+    percentage: number;
+    candidates: number;
+    category: CandidateCategory;
   }>>;
   
   // Audit operations
@@ -425,6 +435,97 @@ export class DatabaseStorage implements IStorage {
       .orderBy(sql`TO_CHAR(${results.createdAt}, 'YYYY-MM-DD HH24:00')`);
 
     return trends;
+  }
+
+  // Party performance data for dashboard charts
+  async getPartyPerformance(category?: CandidateCategory): Promise<Array<{
+    party: string;
+    totalVotes: number;
+    percentage: number;
+    candidates: number;
+    category: CandidateCategory;
+  }>> {
+    try {
+      // Get all verified results
+      const verifiedResults = await db
+        .select()
+        .from(results)
+        .leftJoin(candidates, sql`true`) // We'll process this differently
+        .where(eq(results.status, 'verified'));
+
+      // Get all candidates to match parties with categories
+      const allCandidates = await db.select().from(candidates);
+      
+      // Initialize party performance map
+      const partyPerformance = new Map<string, {
+        party: string;
+        totalVotes: number;
+        candidates: number;
+        category: CandidateCategory;
+      }>();
+
+      // Process each verified result
+      for (const result of verifiedResults) {
+        const resultData = result.results;
+        
+        // Process each category's votes
+        const categories: { votes: any; category: CandidateCategory }[] = [
+          { votes: resultData.presidentialVotes, category: 'president' },
+          { votes: resultData.mpVotes, category: 'mp' },
+          { votes: resultData.councilorVotes, category: 'councilor' }
+        ];
+
+        for (const { votes, category: resultCategory } of categories) {
+          // Skip if filtering by category and this doesn't match
+          if (category && category !== resultCategory) continue;
+          
+          if (votes && typeof votes === 'object') {
+            // votes is a JSON object: { candidateId: voteCount, ... }
+            for (const [candidateId, voteCount] of Object.entries(votes)) {
+              const candidate = allCandidates.find(c => c.id === candidateId);
+              if (candidate && candidate.category === resultCategory) {
+                const key = `${candidate.party}-${resultCategory}`;
+                
+                if (!partyPerformance.has(key)) {
+                  partyPerformance.set(key, {
+                    party: candidate.party,
+                    totalVotes: 0,
+                    candidates: 0,
+                    category: resultCategory
+                  });
+                }
+                
+                const partyData = partyPerformance.get(key)!;
+                partyData.totalVotes += Number(voteCount) || 0;
+              }
+            }
+          }
+        }
+      }
+
+      // Count candidates per party-category combination
+      for (const candidate of allCandidates) {
+        if (category && candidate.category !== category) continue;
+        
+        const key = `${candidate.party}-${candidate.category}`;
+        if (partyPerformance.has(key)) {
+          partyPerformance.get(key)!.candidates++;
+        }
+      }
+
+      // Convert to array and calculate percentages
+      const performanceArray = Array.from(partyPerformance.values());
+      const totalVotes = performanceArray.reduce((sum, party) => sum + party.totalVotes, 0);
+
+      return performanceArray.map(party => ({
+        ...party,
+        percentage: totalVotes > 0 ? (party.totalVotes / totalVotes) * 100 : 0
+      })).sort((a, b) => b.totalVotes - a.totalVotes);
+      
+    } catch (error) {
+      console.error('Error calculating party performance:', error);
+      return [];
+    }
   }
 
   // Admin database management operations

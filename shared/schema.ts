@@ -26,7 +26,7 @@ export const sessions = pgTable(
 );
 
 // User roles enum
-export const userRoleEnum = pgEnum('user_role', ['agent', 'supervisor', 'admin']);
+export const userRoleEnum = pgEnum('user_role', ['agent', 'supervisor', 'admin', 'reviewer']);
 
 // Result status enum  
 export const resultStatusEnum = pgEnum('result_status', ['pending', 'verified', 'flagged', 'rejected']);
@@ -256,7 +256,7 @@ export type ResultWithRelations = Result & {
   files: ResultFile[];
 };
 
-export type UserRole = 'agent' | 'supervisor' | 'admin';
+export type UserRole = 'agent' | 'supervisor' | 'admin' | 'reviewer';
 export type ResultStatus = 'pending' | 'verified' | 'flagged' | 'rejected';
 export type SubmissionChannel = 'whatsapp' | 'portal' | 'both';
 export type CandidateCategory = 'president' | 'mp' | 'councilor';
