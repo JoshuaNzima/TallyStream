@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import bcrypt from "bcryptjs";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, hashPassword, validateRegister, validateLogin } from "./auth";
 import passport from "passport";
@@ -764,6 +765,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error saving API settings:", error);
       res.status(500).json({ message: "Failed to save API settings" });
+    }
+  });
+
+  // Profile management endpoints
+  app.put("/api/auth/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = req.user;
+      const { firstName, lastName, email, phone } = req.body;
+
+      // Update user profile
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          firstName,
+          lastName,
+          email: email || null,
+          phone: phone || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, currentUser.id))
+        .returning();
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: "UPDATE",
+        entityType: "profile",
+        entityId: currentUser.id,
+        oldValues: { firstName: currentUser.firstName, lastName: currentUser.lastName },
+        newValues: { firstName, lastName },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json({ message: "Profile updated successfully", user: updatedUser });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  app.put("/api/auth/change-password", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = req.user;
+      const { currentPassword, newPassword } = req.body;
+
+      // Get full user data to check current password
+      const user = await storage.getUser(currentUser.id);
+      if (!user || !user.passwordHash) {
+        return res.status(400).json({ message: "User not found" });
+      }
+
+      // Verify current password
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      // Hash new password
+      const newPasswordHash = await bcrypt.hash(newPassword, 12);
+
+      // Update password
+      await db
+        .update(users)
+        .set({
+          passwordHash: newPasswordHash,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, currentUser.id));
+
+      // Log audit (without logging the actual password)
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: "UPDATE",
+        entityType: "security",
+        entityId: currentUser.id,
+        newValues: { action: "password_changed" },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
     }
   });
 

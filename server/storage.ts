@@ -371,8 +371,23 @@ export class DatabaseStorage implements IStorage {
 
   async getAuditLogs(limit = 100): Promise<AuditLog[]> {
     return await db
-      .select()
+      .select({
+        id: auditLogs.id,
+        userId: auditLogs.userId,
+        action: auditLogs.action,
+        entityType: auditLogs.entityType,
+        entityId: auditLogs.entityId,
+        oldValues: auditLogs.oldValues,
+        newValues: auditLogs.newValues,
+        ipAddress: auditLogs.ipAddress,
+        userAgent: auditLogs.userAgent,
+        createdAt: auditLogs.createdAt,
+        // Join with users table to get user name
+        userName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+        userEmail: users.email
+      })
       .from(auditLogs)
+      .leftJoin(users, eq(auditLogs.userId, users.id))
       .orderBy(desc(auditLogs.createdAt))
       .limit(limit);
   }
