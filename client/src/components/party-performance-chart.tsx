@@ -162,9 +162,7 @@ export default function PartyPerformanceChart() {
                 />
                 <YAxis />
                 <Tooltip 
-                  formatter={[
-                    (value: number, name: string) => [value.toLocaleString(), 'Votes'],
-                  ]}
+                  formatter={(value: number) => [value.toLocaleString(), 'Votes']}
                   labelFormatter={(label) => `Party: ${label}`}
                 />
                 <Bar 

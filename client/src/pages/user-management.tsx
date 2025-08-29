@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, Shield, UserX, Trash2 } from "lucide-react";
+import { Users, Shield, UserX, Trash2, UserCheck } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 export default function UserManagement() {
@@ -69,6 +69,27 @@ export default function UserManagement() {
     },
   });
 
+  const reactivateUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("PATCH", `/api/admin/users/${userId}/reactivate`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({
+        title: "Success",
+        description: "User reactivated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to reactivate user",
+        variant: "destructive",
+      });
+    },
+  });
+
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       const res = await apiRequest("DELETE", `/api/admin/users/${userId}`);
@@ -91,7 +112,7 @@ export default function UserManagement() {
   });
 
   // Only admin users can access this page
-  if (user?.role !== 'admin') {
+  if ((user as any)?.role !== 'admin') {
     return (
       <div className="flex items-center justify-center h-64">
         <Card className="w-full max-w-md">
@@ -141,8 +162,8 @@ export default function UserManagement() {
             <div className="text-center py-8">Loading users...</div>
           ) : (
             <div className="space-y-4">
-              {users && Array.isArray(users) && users.map((user: any) => (
-                <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+              {users && Array.isArray(users) && (users as any[]).map((user: any) => (
+                <div key={user.id} className={`flex items-center justify-between p-4 border rounded-lg ${!user.isActive ? 'opacity-60 bg-gray-50' : ''}`}>
                   <div className="flex items-center space-x-4">
                     <img
                       src={user.profileImageUrl || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=1565c0&color=fff`}
@@ -192,7 +213,19 @@ export default function UserManagement() {
                         Deactivate
                       </Button>
                     ) : (
-                      <Badge variant="destructive">Inactive</Badge>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant="destructive">Inactive</Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => reactivateUserMutation.mutate(user.id)}
+                          disabled={reactivateUserMutation.isPending}
+                          data-testid={`button-reactivate-${user.id}`}
+                        >
+                          <UserCheck className="h-4 w-4 mr-2" />
+                          Reactivate
+                        </Button>
+                      </div>
                     )}
 
                     <Button

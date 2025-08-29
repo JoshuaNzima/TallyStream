@@ -631,6 +631,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/admin/users/:id/reactivate", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = req.user;
+      if (currentUser?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const userId = req.params.id;
+      const updatedUser = await storage.reactivateUser(userId);
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: "UPDATE",
+        entityType: "user",
+        entityId: userId,
+        newValues: { isActive: true },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error reactivating user:", error);
+      res.status(400).json({ message: "Failed to reactivate user" });
+    }
+  });
+
   app.delete("/api/admin/users/:id", isAuthenticated, async (req: any, res) => {
     try {
       const currentUser = req.user;

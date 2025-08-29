@@ -149,7 +149,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllUsers(): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.isActive, true)).orderBy(desc(users.createdAt));
+    return await db.select().from(users).orderBy(desc(users.createdAt));
   }
 
   async updateUserRole(userId: string, role: UserRole): Promise<User> {
@@ -465,7 +465,6 @@ export class DatabaseStorage implements IStorage {
       const verifiedResults = await db
         .select()
         .from(results)
-        .leftJoin(candidates, sql`true`) // We'll process this differently
         .where(eq(results.status, 'verified'));
 
       // Get all candidates to match parties with categories
@@ -481,7 +480,7 @@ export class DatabaseStorage implements IStorage {
 
       // Process each verified result
       for (const result of verifiedResults) {
-        const resultData = result.results;
+        const resultData = result;
         
         // Process each category's votes
         const categories: { votes: any; category: CandidateCategory }[] = [
@@ -548,6 +547,15 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .update(users)
       .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async reactivateUser(userId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ isActive: true, updatedAt: new Date() })
       .where(eq(users.id, userId))
       .returning();
     return user;
