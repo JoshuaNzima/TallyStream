@@ -56,6 +56,13 @@ Preferred communication style: Simple, everyday language.
 ### Authentication Services
 - **Custom Authentication**: Email/phone + password authentication with bcrypt hashing
 - **Connect-PG-Simple**: PostgreSQL session store for persistent user sessions
+- **Single Session Enforcement**: Prevents concurrent logins from multiple devices per user
+
+### USSD Integration Services
+- **Twilio USSD**: Global USSD service provider for worldwide coverage
+- **TNM (Telekom Networks Malawi)**: Local Malawi USSD service integration
+- **Airtel USSD**: Regional African network USSD service provider
+- **Multi-Provider Support**: Concurrent operation of multiple USSD providers for redundancy
 
 ### UI & Styling
 - **Shadcn/ui**: Pre-built accessible UI components based on Radix UI primitives

@@ -60,24 +60,62 @@ WhatsApp Settings:
 
 ## USSD Integration
 
-### Setup Requirements
+The PTC system supports multiple USSD providers simultaneously for redundancy and better network coverage.
 
-1. **USSD Gateway Provider**: Partner with a telecom operator or USSD service provider
-2. **Short Code**: Obtain a dedicated USSD short code (e.g., *123#)
-3. **Session Management**: Configure session handling for multi-step interactions
+### Supported USSD Providers
+
+#### 1. Twilio USSD
+- **Global Coverage**: Works worldwide including Malawi
+- **Integration Type**: REST API with webhooks
+- **Response Format**: Plain text responses
+- **Session Timeout**: 600 seconds (10 minutes)
+
+#### 2. TNM (Telekom Networks Malawi)
+- **Local Coverage**: Malawi-specific network provider
+- **Integration Type**: Direct telco integration
+- **Response Format**: CON/END format
+- **Session Timeout**: 180 seconds (3 minutes)
+
+#### 3. Airtel USSD
+- **Regional Coverage**: Airtel network coverage across Africa
+- **Integration Type**: OAuth-based API
+- **Response Format**: JSON with structured responses
+- **Session Timeout**: 300 seconds (5 minutes)
 
 ### Configuration in PTC System
 
-Configure USSD settings in **Admin Management → API Settings**:
+Navigate to **Admin Management → API & Integrations → USSD Integration**:
 
+#### Multiple Provider Setup
 ```
-USSD Settings:
-- Enable USSD: ✓ Enabled
-- Short Code: *123#
-- Gateway URL: [USSD provider endpoint]
-- Session Timeout: 180 seconds
-- Menu Language: English/Local Language
+USSD Integration:
+✓ Enable USSD Services
+
+Provider Configurations:
+┌─ Twilio USSD                    [✓ Enabled]
+│  Account SID: AC...
+│  Auth Token: [Hidden]
+│  USSD Phone Number: *123#
+│  Webhook: /api/ussd/twilio
+│
+├─ TNM USSD                       [✓ Enabled]
+│  API Key: [Hidden]
+│  Short Code: 12345
+│  Service Code: *123*45#
+│  Webhook: /api/ussd/tnm
+│
+└─ Airtel USSD                    [✓ Enabled]
+   Client ID: your_client_id
+   Client Secret: [Hidden]
+   Short Code: *456#
+   Webhook: /api/ussd/airtel
 ```
+
+### Benefits of Multi-Provider Setup
+- **Network Redundancy**: If one provider fails, others continue working
+- **Better Coverage**: Different providers may have better coverage in different regions
+- **Load Distribution**: Distribute traffic across multiple providers
+- **Cost Optimization**: Choose the most cost-effective provider per transaction
 
 ### USSD Menu Structure
 

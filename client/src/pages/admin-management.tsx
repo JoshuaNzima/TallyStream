@@ -19,6 +19,9 @@ export default function AdminManagement() {
     candidates: false,
     pollingCenters: false,
     results: false,
+    ussdSessions: false,
+    ussdProviders: false,
+    userSessions: false,
     keepAdmin: true,
   });
 
@@ -41,6 +44,13 @@ export default function AdminManagement() {
     smtpPort: 587,
     smtpUser: '',
     smtpPassword: '',
+    // USSD Integration settings
+    ussdEnabled: false,
+    ussdProviders: {
+      twilio: { enabled: false, accountSid: '', authToken: '', phoneNumber: '' },
+      tnm: { enabled: false, apiKey: '', shortCode: '', serviceCode: '' },
+      airtel: { enabled: false, clientId: '', clientSecret: '', shortCode: '' }
+    }
   });
 
   // Fetch pending users
@@ -907,6 +917,299 @@ export default function AdminManagement() {
               </CardContent>
             </Card>
 
+            {/* USSD Integration */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="w-5 h-5" />
+                  USSD Integration
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Enable USSD Services</p>
+                      <p className="text-sm text-gray-600">
+                        Allow agents to register and submit results via USSD
+                      </p>
+                    </div>
+                    <Checkbox
+                      checked={apiSettings.ussdEnabled}
+                      onCheckedChange={(checked) =>
+                        setApiSettings(prev => ({ ...prev, ussdEnabled: checked as boolean }))
+                      }
+                      data-testid="checkbox-ussd-enabled"
+                    />
+                  </div>
+
+                  {apiSettings.ussdEnabled && (
+                    <div className="space-y-6 border-l-4 border-yellow-500 pl-4">
+                      <p className="text-sm text-yellow-700 bg-yellow-50 p-3 rounded">
+                        <Zap className="w-4 h-4 inline mr-1" />
+                        Multiple USSD providers can be enabled concurrently for redundancy and better coverage
+                      </p>
+
+                      {/* Twilio USSD */}
+                      <div className="bg-blue-50 border border-blue-200 rounded p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <p className="font-medium text-blue-900">Twilio USSD</p>
+                            <p className="text-sm text-blue-700">Global USSD service via Twilio</p>
+                          </div>
+                          <Checkbox
+                            checked={apiSettings.ussdProviders.twilio.enabled}
+                            onCheckedChange={(checked) =>
+                              setApiSettings(prev => ({
+                                ...prev,
+                                ussdProviders: {
+                                  ...prev.ussdProviders,
+                                  twilio: { ...prev.ussdProviders.twilio, enabled: checked as boolean }
+                                }
+                              }))
+                            }
+                            data-testid="checkbox-twilio-ussd"
+                          />
+                        </div>
+                        {apiSettings.ussdProviders.twilio.enabled && (
+                          <div className="grid grid-cols-1 gap-3 mt-3">
+                            <div>
+                              <label className="text-sm font-medium text-blue-900">Account SID</label>
+                              <Input
+                                value={apiSettings.ussdProviders.twilio.accountSid}
+                                onChange={(e) =>
+                                  setApiSettings(prev => ({
+                                    ...prev,
+                                    ussdProviders: {
+                                      ...prev.ussdProviders,
+                                      twilio: { ...prev.ussdProviders.twilio, accountSid: e.target.value }
+                                    }
+                                  }))
+                                }
+                                placeholder="AC..."
+                                data-testid="input-twilio-ussd-sid"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-blue-900">Auth Token</label>
+                              <Input
+                                type="password"
+                                value={apiSettings.ussdProviders.twilio.authToken}
+                                onChange={(e) =>
+                                  setApiSettings(prev => ({
+                                    ...prev,
+                                    ussdProviders: {
+                                      ...prev.ussdProviders,
+                                      twilio: { ...prev.ussdProviders.twilio, authToken: e.target.value }
+                                    }
+                                  }))
+                                }
+                                placeholder="Your Twilio auth token"
+                                data-testid="input-twilio-ussd-token"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-blue-900">USSD Phone Number</label>
+                              <Input
+                                value={apiSettings.ussdProviders.twilio.phoneNumber}
+                                onChange={(e) =>
+                                  setApiSettings(prev => ({
+                                    ...prev,
+                                    ussdProviders: {
+                                      ...prev.ussdProviders,
+                                      twilio: { ...prev.ussdProviders.twilio, phoneNumber: e.target.value }
+                                    }
+                                  }))
+                                }
+                                placeholder="*123#"
+                                data-testid="input-twilio-ussd-number"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* TNM USSD */}
+                      <div className="bg-green-50 border border-green-200 rounded p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <p className="font-medium text-green-900">TNM USSD</p>
+                            <p className="text-sm text-green-700">Telekom Networks Malawi USSD service</p>
+                          </div>
+                          <Checkbox
+                            checked={apiSettings.ussdProviders.tnm.enabled}
+                            onCheckedChange={(checked) =>
+                              setApiSettings(prev => ({
+                                ...prev,
+                                ussdProviders: {
+                                  ...prev.ussdProviders,
+                                  tnm: { ...prev.ussdProviders.tnm, enabled: checked as boolean }
+                                }
+                              }))
+                            }
+                            data-testid="checkbox-tnm-ussd"
+                          />
+                        </div>
+                        {apiSettings.ussdProviders.tnm.enabled && (
+                          <div className="grid grid-cols-1 gap-3 mt-3">
+                            <div>
+                              <label className="text-sm font-medium text-green-900">API Key</label>
+                              <Input
+                                type="password"
+                                value={apiSettings.ussdProviders.tnm.apiKey}
+                                onChange={(e) =>
+                                  setApiSettings(prev => ({
+                                    ...prev,
+                                    ussdProviders: {
+                                      ...prev.ussdProviders,
+                                      tnm: { ...prev.ussdProviders.tnm, apiKey: e.target.value }
+                                    }
+                                  }))
+                                }
+                                placeholder="Your TNM API key"
+                                data-testid="input-tnm-api-key"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-green-900">Short Code</label>
+                              <Input
+                                value={apiSettings.ussdProviders.tnm.shortCode}
+                                onChange={(e) =>
+                                  setApiSettings(prev => ({
+                                    ...prev,
+                                    ussdProviders: {
+                                      ...prev.ussdProviders,
+                                      tnm: { ...prev.ussdProviders.tnm, shortCode: e.target.value }
+                                    }
+                                  }))
+                                }
+                                placeholder="12345"
+                                data-testid="input-tnm-short-code"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-green-900">Service Code</label>
+                              <Input
+                                value={apiSettings.ussdProviders.tnm.serviceCode}
+                                onChange={(e) =>
+                                  setApiSettings(prev => ({
+                                    ...prev,
+                                    ussdProviders: {
+                                      ...prev.ussdProviders,
+                                      tnm: { ...prev.ussdProviders.tnm, serviceCode: e.target.value }
+                                    }
+                                  }))
+                                }
+                                placeholder="*123*45#"
+                                data-testid="input-tnm-service-code"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Airtel USSD */}
+                      <div className="bg-red-50 border border-red-200 rounded p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <p className="font-medium text-red-900">Airtel USSD</p>
+                            <p className="text-sm text-red-700">Airtel network USSD integration</p>
+                          </div>
+                          <Checkbox
+                            checked={apiSettings.ussdProviders.airtel.enabled}
+                            onCheckedChange={(checked) =>
+                              setApiSettings(prev => ({
+                                ...prev,
+                                ussdProviders: {
+                                  ...prev.ussdProviders,
+                                  airtel: { ...prev.ussdProviders.airtel, enabled: checked as boolean }
+                                }
+                              }))
+                            }
+                            data-testid="checkbox-airtel-ussd"
+                          />
+                        </div>
+                        {apiSettings.ussdProviders.airtel.enabled && (
+                          <div className="grid grid-cols-1 gap-3 mt-3">
+                            <div>
+                              <label className="text-sm font-medium text-red-900">Client ID</label>
+                              <Input
+                                value={apiSettings.ussdProviders.airtel.clientId}
+                                onChange={(e) =>
+                                  setApiSettings(prev => ({
+                                    ...prev,
+                                    ussdProviders: {
+                                      ...prev.ussdProviders,
+                                      airtel: { ...prev.ussdProviders.airtel, clientId: e.target.value }
+                                    }
+                                  }))
+                                }
+                                placeholder="Your Airtel client ID"
+                                data-testid="input-airtel-client-id"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-red-900">Client Secret</label>
+                              <Input
+                                type="password"
+                                value={apiSettings.ussdProviders.airtel.clientSecret}
+                                onChange={(e) =>
+                                  setApiSettings(prev => ({
+                                    ...prev,
+                                    ussdProviders: {
+                                      ...prev.ussdProviders,
+                                      airtel: { ...prev.ussdProviders.airtel, clientSecret: e.target.value }
+                                    }
+                                  }))
+                                }
+                                placeholder="Your Airtel client secret"
+                                data-testid="input-airtel-client-secret"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-red-900">Short Code</label>
+                              <Input
+                                value={apiSettings.ussdProviders.airtel.shortCode}
+                                onChange={(e) =>
+                                  setApiSettings(prev => ({
+                                    ...prev,
+                                    ussdProviders: {
+                                      ...prev.ussdProviders,
+                                      airtel: { ...prev.ussdProviders.airtel, shortCode: e.target.value }
+                                    }
+                                  }))
+                                }
+                                placeholder="*456#"
+                                data-testid="input-airtel-short-code"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="bg-purple-50 border border-purple-200 rounded p-3 text-sm">
+                        <p className="font-medium text-purple-900 mb-2">USSD Webhook Endpoints:</p>
+                        <div className="space-y-1 text-purple-800">
+                          <div>
+                            <strong>Twilio:</strong> <code className="bg-purple-100 px-2 py-1 rounded">{window.location.origin}/api/ussd/twilio</code>
+                          </div>
+                          <div>
+                            <strong>TNM:</strong> <code className="bg-purple-100 px-2 py-1 rounded">{window.location.origin}/api/ussd/tnm</code>
+                          </div>
+                          <div>
+                            <strong>Airtel:</strong> <code className="bg-purple-100 px-2 py-1 rounded">{window.location.origin}/api/ussd/airtel</code>
+                          </div>
+                        </div>
+                        <p className="text-purple-700 mt-2 text-xs">
+                          Configure these URLs in your respective USSD provider dashboards
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Email Settings */}
             <Card>
               <CardHeader>
@@ -1136,6 +1439,48 @@ export default function AdminManagement() {
                     />
                     <label htmlFor="clean-results" className="text-sm font-medium">
                       Results & Files
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="clean-ussd-sessions"
+                      checked={cleanupOptions.ussdSessions}
+                      onCheckedChange={(checked) =>
+                        setCleanupOptions(prev => ({ ...prev, ussdSessions: checked as boolean }))
+                      }
+                      data-testid="checkbox-clean-ussd-sessions"
+                    />
+                    <label htmlFor="clean-ussd-sessions" className="text-sm font-medium">
+                      USSD Sessions
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="clean-ussd-providers"
+                      checked={cleanupOptions.ussdProviders}
+                      onCheckedChange={(checked) =>
+                        setCleanupOptions(prev => ({ ...prev, ussdProviders: checked as boolean }))
+                      }
+                      data-testid="checkbox-clean-ussd-providers"
+                    />
+                    <label htmlFor="clean-ussd-providers" className="text-sm font-medium">
+                      USSD Provider Configurations
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="clean-user-sessions"
+                      checked={cleanupOptions.userSessions}
+                      onCheckedChange={(checked) =>
+                        setCleanupOptions(prev => ({ ...prev, userSessions: checked as boolean }))
+                      }
+                      data-testid="checkbox-clean-user-sessions"
+                    />
+                    <label htmlFor="clean-user-sessions" className="text-sm font-medium">
+                      User Sessions (Force Re-login)
                     </label>
                   </div>
                 </div>
