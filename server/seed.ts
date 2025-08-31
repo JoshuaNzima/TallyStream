@@ -74,7 +74,7 @@ export async function seedDatabase() {
     // Check if candidates already exist
     const existingCandidates = await storage.getCandidates();
     
-    if (existingCandidates.length === 0) {
+    if (existingCandidates.data.length === 0) {
       // Get parties for candidate seeding
       const parties = await storage.getPoliticalParties();
       const dppParty = parties.find(p => p.abbreviation === "DPP");
@@ -162,7 +162,7 @@ export async function seedDatabase() {
     // Check if polling centers exist
     const existingCenters = await storage.getPollingCenters();
     
-    if (existingCenters.length === 0) {
+    if (existingCenters.data.length === 0) {
       // Create sample polling centers
       await storage.createPollingCenter({
         code: "PC001",
