@@ -13,7 +13,11 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import FileUpload from "./file-upload";
-import { NotebookPen, Save } from "lucide-react";
+import { NotebookPen, Save, Users, Eye } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const formSchema = z.object({
   pollingCenterId: z.string().min(1, "Polling center is required"),
@@ -30,6 +34,8 @@ type FormData = z.infer<typeof formSchema>;
 export default function ResultSubmissionForm() {
   const { toast } = useToast();
   const [files, setFiles] = useState<File[]>([]);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [pendingSubmission, setPendingSubmission] = useState<FormData | null>(null);
 
   const { data: pollingCenters } = useQuery({
     queryKey: ["/api/polling-centers"],
@@ -118,7 +124,61 @@ export default function ResultSubmissionForm() {
   });
 
   const onSubmit = (data: FormData) => {
-    submitMutation.mutate(data);
+    setPendingSubmission(data);
+    setShowSummaryModal(true);
+  };
+
+  const handleConfirmSubmit = () => {
+    if (pendingSubmission) {
+      submitMutation.mutate(pendingSubmission);
+      setShowSummaryModal(false);
+      setPendingSubmission(null);
+    }
+  };
+
+  const calculateTotalVotes = (data: FormData) => {
+    let total = data.invalidVotes || 0;
+    const category = data.category;
+    
+    if (category === 'president' && data.presidentialVotes) {
+      total += Object.values(data.presidentialVotes).reduce((sum, votes) => sum + (Number(votes) || 0), 0);
+    } else if (category === 'mp' && data.mpVotes) {
+      total += Object.values(data.mpVotes).reduce((sum, votes) => sum + (Number(votes) || 0), 0);
+    } else if (category === 'councilor' && data.councilorVotes) {
+      total += Object.values(data.councilorVotes).reduce((sum, votes) => sum + (Number(votes) || 0), 0);
+    }
+    
+    return total;
+  };
+
+  const getSummaryData = () => {
+    if (!pendingSubmission) return null;
+    
+    const category = pendingSubmission.category;
+    const votes = category === 'president' ? pendingSubmission.presidentialVotes :
+                  category === 'mp' ? pendingSubmission.mpVotes : 
+                  pendingSubmission.councilorVotes;
+    
+    const candidateVotes = [];
+    if (votes) {
+      for (const [candidateId, voteCount] of Object.entries(votes)) {
+        const candidate = candidates?.find((c: any) => c.id === candidateId);
+        const party = politicalParties?.find((p: any) => p.id === candidate?.partyId || p.name === candidate?.party);
+        if (candidate && Number(voteCount) > 0) {
+          candidateVotes.push({
+            candidate: candidate.name,
+            party: party?.name || candidate.party,
+            votes: Number(voteCount)
+          });
+        }
+      }
+    }
+    
+    return {
+      candidateVotes,
+      invalidVotes: pendingSubmission.invalidVotes,
+      totalVotes: calculateTotalVotes(pendingSubmission)
+    };
   };
 
   const handleSaveDraft = () => {
@@ -130,6 +190,7 @@ export default function ResultSubmissionForm() {
   };
 
   return (
+    <>
     <Card className="border shadow-sm">
       <CardHeader className="border-b">
         <CardTitle data-testid="text-submission-form-title">Submit New Results</CardTitle>
@@ -201,130 +262,95 @@ export default function ResultSubmissionForm() {
               <div className="space-y-6">
                 <h5 className="text-base font-medium text-gray-800">Candidate Votes</h5>
                 
-                {/* Presidential Candidates */}
-                {form.watch("category") === "president" && (
-                  <div className="space-y-3">
-                    <h5 className="text-sm font-medium text-gray-700">Presidential Candidates</h5>
-                    {candidates && Array.isArray(candidates) && candidates.filter((c: any) => c.category === "president").map((candidate: any) => (
-                      <FormField
-                        key={candidate.id}
-                        control={form.control}
-                        name={`presidentialVotes.${candidate.id}`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm flex items-center gap-2">
-                              <span>{candidate.name}</span>
-                              {(() => {
-                                const party = politicalParties?.find((p: any) => p.id === candidate.partyId || p.name === candidate.party);
-                                return party ? (
-                                  <span className="flex items-center gap-1">
+                <div className="flex items-center gap-2 mb-4">
+                  <Users className="h-5 w-5 text-blue-600" />
+                  <h5 className="text-base font-medium text-gray-800">Candidate Votes</h5>
+                  <Badge variant="outline" className="ml-auto">
+                    {(() => {
+                      const category = form.watch("category");
+                      return category === "president" ? "Presidential" : 
+                             category === "mp" ? "MP" : "Councilor";
+                    })()}
+                  </Badge>
+                </div>
+                
+                <div className="border rounded-lg overflow-hidden">
+                  <ScrollArea className="h-[400px]">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-gray-50">
+                        <TableRow>
+                          <TableHead className="w-[40%]">Candidate</TableHead>
+                          <TableHead className="w-[30%]">Party</TableHead>
+                          {form.watch("category") !== "president" && (
+                            <TableHead className="w-[20%]">Constituency</TableHead>
+                          )}
+                          <TableHead className="w-[10%] text-right">Votes</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {candidates && Array.isArray(candidates) && 
+                         candidates
+                          .filter((c: any) => c.category === form.watch("category"))
+                          .sort((a: any, b: any) => {
+                            const partyA = (politicalParties as any[])?.find((p: any) => p.id === a.partyId || p.name === a.party)?.name || a.party;
+                            const partyB = (politicalParties as any[])?.find((p: any) => p.id === b.partyId || p.name === b.party)?.name || b.party;
+                            return partyA.localeCompare(partyB);
+                          })
+                          .map((candidate: any) => {
+                            const party = (politicalParties as any[])?.find((p: any) => p.id === candidate.partyId || p.name === candidate.party);
+                            const fieldName = form.watch("category") === "president" ? "presidentialVotes" :
+                                            form.watch("category") === "mp" ? "mpVotes" : "councilorVotes";
+                            
+                            return (
+                              <TableRow key={candidate.id} className="hover:bg-gray-50">
+                                <TableCell className="font-medium">{candidate.name}</TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
                                     <div 
-                                      className="w-3 h-3 rounded-full" 
-                                      style={{ backgroundColor: party.color || "#6B7280" }}
+                                      className="w-3 h-3 rounded-full flex-shrink-0" 
+                                      style={{ backgroundColor: party?.color || "#6B7280" }}
                                     />
-                                    <span className="text-xs font-medium">
-                                      {party.abbreviation || party.name}
+                                    <span className="text-sm font-medium truncate">
+                                      {party?.abbreviation || party?.name || candidate.party}
                                     </span>
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-gray-500">({candidate.party})</span>
-                                );
-                              })()}
-                            </FormLabel>
-                            <FormControl>
-                              <Input type="number" min="0" {...field} data-testid={`input-votes-${candidate.id}`} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                  </div>
-                )}
+                                  </div>
+                                </TableCell>
+                                {form.watch("category") !== "president" && (
+                                  <TableCell className="text-sm text-gray-600">
+                                    {candidate.constituency}
+                                  </TableCell>
+                                )}
+                                <TableCell className="text-right">
+                                  <FormField
+                                    control={form.control}
+                                    name={`${fieldName}.${candidate.id}`}
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormControl>
+                                          <Input 
+                                            type="number" 
+                                            min="0" 
+                                            className="w-20 text-right" 
+                                            placeholder="0"
+                                            {...field} 
+                                            data-testid={`input-votes-${candidate.id}`} 
+                                          />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        }
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </div>
 
-                {/* MP Candidates */}
-                {form.watch("category") === "mp" && (
-                  <div className="space-y-3">
-                    <h5 className="text-sm font-medium text-gray-700">MP Candidates</h5>
-                    {candidates && Array.isArray(candidates) && candidates.filter((c: any) => c.category === "mp").map((candidate: any) => (
-                      <FormField
-                        key={candidate.id}
-                        control={form.control}
-                        name={`mpVotes.${candidate.id}`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm flex items-center gap-2">
-                              <span>{candidate.name}</span>
-                              {(() => {
-                                const party = politicalParties?.find((p: any) => p.id === candidate.partyId || p.name === candidate.party);
-                                return party ? (
-                                  <span className="flex items-center gap-1">
-                                    <div 
-                                      className="w-3 h-3 rounded-full" 
-                                      style={{ backgroundColor: party.color || "#6B7280" }}
-                                    />
-                                    <span className="text-xs font-medium">
-                                      {party.abbreviation || party.name}
-                                    </span>
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-gray-500">({candidate.party})</span>
-                                );
-                              })()}
-                              <span className="text-xs text-gray-500">- {candidate.constituency}</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input type="number" min="0" {...field} data-testid={`input-votes-${candidate.id}`} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                  </div>
-                )}
 
-                {/* Councilor Candidates */}
-                {form.watch("category") === "councilor" && (
-                  <div className="space-y-3">
-                    <h5 className="text-sm font-medium text-gray-700">Councilor Candidates</h5>
-                    {candidates && Array.isArray(candidates) && candidates.filter((c: any) => c.category === "councilor").map((candidate: any) => (
-                      <FormField
-                        key={candidate.id}
-                        control={form.control}
-                        name={`councilorVotes.${candidate.id}`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm flex items-center gap-2">
-                              <span>{candidate.name}</span>
-                              {(() => {
-                                const party = politicalParties?.find((p: any) => p.id === candidate.partyId || p.name === candidate.party);
-                                return party ? (
-                                  <span className="flex items-center gap-1">
-                                    <div 
-                                      className="w-3 h-3 rounded-full" 
-                                      style={{ backgroundColor: party.color || "#6B7280" }}
-                                    />
-                                    <span className="text-xs font-medium">
-                                      {party.abbreviation || party.name}
-                                    </span>
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-gray-500">({candidate.party})</span>
-                                );
-                              })()}
-                              <span className="text-xs text-gray-500">- {candidate.constituency}</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input type="number" min="0" {...field} data-testid={`input-votes-${candidate.id}`} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                  </div>
-                )}
               </div>
               
               <div className="mt-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
@@ -401,5 +427,99 @@ export default function ResultSubmissionForm() {
         </Form>
       </CardContent>
     </Card>
+    
+    {/* Confirmation Modal */}
+    <AlertDialog open={showSummaryModal} onOpenChange={setShowSummaryModal}>
+      <AlertDialogContent className="max-w-2xl">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5 text-blue-600" />
+            Confirm Result Submission
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Please review the details before submitting the results to ensure accuracy.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        
+        <div className="space-y-4 py-4">
+          {pendingSubmission && (() => {
+            const summaryData = getSummaryData();
+            const selectedCenter = (pollingCenters as any[])?.find((c: any) => c.id === pendingSubmission.pollingCenterId);
+            const categoryLabel = pendingSubmission.category === "president" ? "Presidential" :
+                                pendingSubmission.category === "mp" ? "Members of Parliament" : "Councilor";
+            
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-600">Polling Center:</span>
+                    <p className="font-medium">{selectedCenter?.code} - {selectedCenter?.name}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Category:</span>
+                    <p className="font-medium">{categoryLabel}</p>
+                  </div>
+                </div>
+                
+                {summaryData?.candidateVotes && summaryData.candidateVotes.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-2">Candidate Votes</h4>
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="text-left p-2 font-medium">Candidate</th>
+                            <th className="text-left p-2 font-medium">Party</th>
+                            <th className="text-right p-2 font-medium">Votes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {summaryData.candidateVotes.map((cv: any, idx: number) => (
+                            <tr key={idx} className="border-t">
+                              <td className="p-2">{cv.candidate}</td>
+                              <td className="p-2">{cv.party}</td>
+                              <td className="p-2 text-right font-medium">{cv.votes.toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <div className="text-sm">
+                    <span className="font-medium text-gray-600">Invalid Votes: </span>
+                    <span className="font-medium">{summaryData?.invalidVotes || 0}</span>
+                  </div>
+                  <div className="text-lg font-bold">
+                    <span className="text-gray-600">Total Votes: </span>
+                    <span className="text-blue-600">{summaryData?.totalVotes || 0}</span>
+                  </div>
+                </div>
+                
+                {pendingSubmission.comments && (
+                  <div>
+                    <span className="font-medium text-gray-600">Comments:</span>
+                    <p className="text-sm bg-gray-50 p-2 rounded">{pendingSubmission.comments}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+        
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={handleConfirmSubmit}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            Confirm & Submit
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
