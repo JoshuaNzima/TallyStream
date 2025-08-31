@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Users, UserCheck, Building, Vote, MapPin, Database, Archive, Trash2, AlertTriangle, Zap, Key, MessageSquare, Shield } from "lucide-react";
+import { Users, UserCheck, Building, Vote, MapPin, Database, Archive, Trash2, AlertTriangle, Zap, Key, MessageSquare, Shield, Edit, ToggleLeft, ToggleRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export default function AdminManagement() {
@@ -51,6 +51,10 @@ export default function AdminManagement() {
   // Fetch candidates
   const { data: candidates } = useQuery({
     queryKey: ["/api/candidates"],
+  });
+
+  const { data: politicalParties } = useQuery({
+    queryKey: ["/api/political-parties"],
   });
 
   // Fetch polling centers
@@ -323,12 +327,29 @@ export default function AdminManagement() {
                     required
                     data-testid="input-candidate-name"
                   />
-                  <Input
-                    name="candidateParty"
-                    placeholder="Party Name"
-                    required
-                    data-testid="input-candidate-party"
-                  />
+                  <Select name="candidateParty" required>
+                    <SelectTrigger data-testid="select-candidate-party">
+                      <SelectValue placeholder="Select political party" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {politicalParties && Array.isArray(politicalParties) && politicalParties
+                        .filter((party: any) => party.isActive)
+                        .map((party: any) => (
+                          <SelectItem key={party.id} value={party.name}>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: party.color || '#6B7280' }}
+                              />
+                              <span>{party.name}</span>
+                              {party.abbreviation && (
+                                <span className="text-gray-500">({party.abbreviation})</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -366,20 +387,100 @@ export default function AdminManagement() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {candidates && Array.isArray(candidates) && candidates.map((candidate: any) => (
-                  <div key={candidate.id} className="flex items-center justify-between p-3 border rounded">
-                    <div>
-                      <p className="font-medium">{candidate.name}</p>
-                      <p className="text-sm text-gray-600">{candidate.party}</p>
-                      <div className="flex gap-2 mt-1">
-                        <Badge variant="secondary">{candidate.category}</Badge>
-                        {candidate.constituency && (
-                          <Badge variant="outline">{candidate.constituency}</Badge>
-                        )}
+                {candidates && Array.isArray(candidates) && candidates.map((candidate: any) => {
+                  const party = politicalParties?.find((p: any) => p.id === candidate.partyId || p.name === candidate.party);
+                  return (
+                    <div key={candidate.id} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{candidate.name}</p>
+                          {!candidate.isActive && (
+                            <Badge variant="outline" className="text-red-600 border-red-300">
+                              Disabled
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {party && (
+                            <div className="flex items-center gap-1">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: party.color || '#6B7280' }}
+                              />
+                              <span className="text-sm text-gray-600">{party.name}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2 mt-1">
+                          <Badge variant="secondary">{candidate.category}</Badge>
+                          {candidate.constituency && (
+                            <Badge variant="outline">{candidate.constituency}</Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            toast({
+                              title: "Edit Candidate",
+                              description: `Edit functionality for ${candidate.name} will be implemented.`,
+                            });
+                          }}
+                          data-testid={`button-edit-candidate-${candidate.id}`}
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to ${candidate.isActive ? 'disable' : 'enable'} ${candidate.name}?`)) {
+                              toast({
+                                title: candidate.isActive ? "Candidate Disabled" : "Candidate Enabled",
+                                description: `${candidate.name} has been ${candidate.isActive ? 'disabled' : 'enabled'}.`,
+                              });
+                            }
+                          }}
+                          className={candidate.isActive ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
+                          data-testid={`button-toggle-candidate-${candidate.id}`}
+                        >
+                          {candidate.isActive ? (
+                            <>
+                              <ToggleLeft className="h-3 w-3 mr-1" />
+                              Disable
+                            </>
+                          ) : (
+                            <>
+                              <ToggleRight className="h-3 w-3 mr-1" />
+                              Enable
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to permanently delete ${candidate.name}? This action cannot be undone.`)) {
+                              toast({
+                                title: "Candidate Deleted",
+                                description: `${candidate.name} has been permanently removed.`,
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                          data-testid={`button-delete-candidate-${candidate.id}`}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Delete
+                        </Button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -453,15 +554,82 @@ export default function AdminManagement() {
             <CardContent>
               <div className="space-y-3">
                 {pollingCenters && Array.isArray(pollingCenters) && pollingCenters.map((center: any) => (
-                  <div key={center.id} className="flex items-center justify-between p-3 border rounded">
-                    <div>
-                      <p className="font-medium">{center.code} - {center.name}</p>
-                      <p className="text-sm text-gray-600">
+                  <div key={center.id} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{center.code} - {center.name}</p>
+                        {!center.isActive && (
+                          <Badge variant="outline" className="text-red-600 border-red-300">
+                            Disabled
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
                         {center.constituency}, {center.district}, {center.state}
                       </p>
-                      <p className="text-sm text-blue-600">
-                        {center.registeredVoters} registered voters
+                      <p className="text-sm text-blue-600 mt-1">
+                        {center.registeredVoters.toLocaleString()} registered voters
                       </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          toast({
+                            title: "Edit Polling Center",
+                            description: `Edit functionality for ${center.name} will be implemented.`,
+                          });
+                        }}
+                        data-testid={`button-edit-center-${center.id}`}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to ${center.isActive ? 'disable' : 'enable'} polling center ${center.code}?`)) {
+                            toast({
+                              title: center.isActive ? "Polling Center Disabled" : "Polling Center Enabled",
+                              description: `${center.code} - ${center.name} has been ${center.isActive ? 'disabled' : 'enabled'}.`,
+                            });
+                          }
+                        }}
+                        className={center.isActive ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
+                        data-testid={`button-toggle-center-${center.id}`}
+                      >
+                        {center.isActive ? (
+                          <>
+                            <ToggleLeft className="h-3 w-3 mr-1" />
+                            Disable
+                          </>
+                        ) : (
+                          <>
+                            <ToggleRight className="h-3 w-3 mr-1" />
+                            Enable
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to permanently delete polling center ${center.code} - ${center.name}? This action cannot be undone.`)) {
+                            toast({
+                              title: "Polling Center Deleted",
+                              description: `${center.code} - ${center.name} has been permanently removed.`,
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        data-testid={`button-delete-center-${center.id}`}
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 ))}

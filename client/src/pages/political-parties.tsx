@@ -28,7 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Users, Shield, Edit, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Users, Shield, Edit, Trash2, ToggleLeft, ToggleRight, Eye, Upload, Image } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPoliticalPartySchema } from "@shared/schema";
@@ -40,6 +40,7 @@ const formSchema = insertPoliticalPartySchema.extend({
   color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, {
     message: "Please enter a valid hex color code",
   }).optional(),
+  logoUrl: z.string().optional(),
 });
 
 export function PoliticalPartiesPage() {
@@ -54,12 +55,24 @@ export function PoliticalPartiesPage() {
       abbreviation: "",
       color: "#3B82F6",
       description: "",
+      logoUrl: "",
     },
   });
 
   const { data: parties, isLoading } = useQuery({
     queryKey: ["/api/political-parties"],
   });
+
+  const { data: candidates } = useQuery({
+    queryKey: ["/api/candidates"],
+  });
+
+  const getCandidateCount = (partyId: string, partyName: string) => {
+    if (!candidates) return 0;
+    return (candidates as any[]).filter((candidate: any) => 
+      candidate.partyId === partyId || candidate.party === partyName
+    ).length;
+  };
 
   const createPartyMutation = useMutation({
     mutationFn: async (partyData: z.infer<typeof formSchema>) => {
@@ -234,6 +247,7 @@ export function PoliticalPartiesPage() {
       abbreviation: party.abbreviation || "",
       color: party.color || "#3B82F6",
       description: party.description || "",
+      logoUrl: (party as any).logoUrl || "",
     });
     setIsDialogOpen(true);
   };
@@ -334,6 +348,7 @@ export function PoliticalPartiesPage() {
                         <Input
                           placeholder="e.g., DPP"
                           {...field}
+                          value={field.value || ""}
                           data-testid="input-party-abbreviation"
                         />
                       </FormControl>
@@ -378,8 +393,52 @@ export function PoliticalPartiesPage() {
                         <Textarea
                           placeholder="Brief description of the political party..."
                           {...field}
+                          value={field.value || ""}
                           data-testid="textarea-party-description"
                         />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="logoUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Party Logo (Optional)</FormLabel>
+                      <FormControl>
+                        <div className="space-y-3">
+                          <Input
+                            placeholder="https://example.com/logo.png or leave blank"
+                            {...field}
+                            data-testid="input-party-logo"
+                          />
+                          {field.value ? (
+                            <div className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50">
+                              <img 
+                                src={field.value} 
+                                alt="Party logo preview" 
+                                className="w-12 h-12 object-contain rounded"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/api/placeholder/64/64';
+                                }}
+                              />
+                              <div className="text-sm text-gray-600">
+                                Logo preview
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3 p-3 border-2 border-dashed rounded-lg text-center">
+                              <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                                <Image className="h-6 w-6 text-gray-400" />
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                No logo - will use default placeholder
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -416,7 +475,7 @@ export function PoliticalPartiesPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {(parties || []).map((party: PoliticalParty) => (
+        {((parties as any[]) || []).map((party: PoliticalParty) => (
           <Card key={party.id} data-testid={`card-party-${party.id}`}>
             <CardHeader className="space-y-0 pb-2">
               <CardTitle className="flex items-center justify-between">
@@ -438,28 +497,60 @@ export function PoliticalPartiesPage() {
                   {party.description}
                 </p>
               )}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
+              {/* Party Logo */}
+              <div className="flex items-center gap-3 mb-3">
+                {(party as any).logoUrl ? (
+                  <img 
+                    src={(party as any).logoUrl} 
+                    alt={`${party.name} logo`}
+                    className="w-10 h-10 object-contain rounded border"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/api/placeholder/40/40';
+                    }}
+                  />
+                ) : (
+                  <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center">
+                    <Image className="h-5 w-5 text-gray-400" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium">
+                      {getCandidateCount(party.id, party.name)} candidate{getCandidateCount(party.id, party.name) !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: party.color || '#6B7280' }}
+                    />
                     <span className={party.isActive ? "text-green-600" : "text-red-600"}>
                       {party.isActive ? "Active" : "Inactive"}
                     </span>
                   </div>
-                  {party.color && (
-                    <div className="flex items-center gap-1">
-                      <div
-                        className="w-4 h-4 rounded-full border"
-                        style={{ backgroundColor: party.color }}
-                      />
-                      <span>{party.color}</span>
-                    </div>
-                  )}
                 </div>
               </div>
               
               {/* Action Buttons */}
               <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // View party candidates details - will implement navigation to candidates filtered by party
+                    const candidateCount = getCandidateCount(party.id, party.name);
+                    toast({
+                      title: `${party.name} Details`,
+                      description: `This party has ${candidateCount} registered candidate${candidateCount !== 1 ? 's' : ''}.`,
+                    });
+                  }}
+                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                  data-testid={`button-view-details-${party.id}`}
+                >
+                  <Eye className="h-3 w-3 mr-1" />
+                  View Details
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -511,7 +602,7 @@ export function PoliticalPartiesPage() {
         ))}
       </div>
 
-      {parties && parties.length === 0 && (
+      {(parties as any[]) && (parties as any[]).length === 0 && (
         <Card data-testid="empty-parties">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

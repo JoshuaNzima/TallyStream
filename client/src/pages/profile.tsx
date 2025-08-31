@@ -43,10 +43,10 @@ export default function Profile() {
   const profileForm = useForm<ProfileData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      firstName: currentUser?.firstName || "",
-      lastName: currentUser?.lastName || "",
-      email: currentUser?.email || "",
-      phone: currentUser?.phone || "",
+      firstName: (currentUser as any)?.firstName || "",
+      lastName: (currentUser as any)?.lastName || "",
+      email: (currentUser as any)?.email || "",
+      phone: (currentUser as any)?.phone || "",
     },
   });
 
@@ -113,12 +113,12 @@ export default function Profile() {
   };
 
   // Update form values when user data loads
-  if (currentUser && profileForm.getValues().firstName !== currentUser.firstName) {
+  if (currentUser && profileForm.getValues().firstName !== (currentUser as any).firstName) {
     profileForm.reset({
-      firstName: currentUser.firstName || "",
-      lastName: currentUser.lastName || "",
-      email: currentUser.email || "",
-      phone: currentUser.phone || "",
+      firstName: (currentUser as any).firstName || "",
+      lastName: (currentUser as any).lastName || "",
+      email: (currentUser as any).email || "",
+      phone: (currentUser as any).phone || "",
     });
   }
 
@@ -194,11 +194,18 @@ export default function Profile() {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email Address</FormLabel>
+                        <FormLabel>Email Address (Read-only)</FormLabel>
                         <FormControl>
-                          <Input type="email" {...field} data-testid="input-email" />
+                          <Input 
+                            type="email" 
+                            {...field} 
+                            disabled={true}
+                            className="bg-gray-50 text-gray-500"
+                            data-testid="input-email" 
+                          />
                         </FormControl>
                         <FormMessage />
+                        <p className="text-xs text-gray-500">Email cannot be changed for security reasons</p>
                       </FormItem>
                     )}
                   />
@@ -236,64 +243,30 @@ export default function Profile() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Key className="w-5 h-5" />
-                Change Password
+                Password Management
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Form {...passwordForm}>
-                <form onSubmit={passwordForm.handleSubmit(onChangePassword)} className="space-y-4">
-                  <FormField
-                    control={passwordForm.control}
-                    name="currentPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Current Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} data-testid="input-current-password" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={passwordForm.control}
-                    name="newPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} data-testid="input-new-password" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={passwordForm.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} data-testid="input-confirm-password" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button
-                    type="submit"
-                    disabled={changePasswordMutation.isPending}
-                    data-testid="button-change-password"
-                  >
-                    <Key className="w-4 h-4 mr-2" />
-                    {changePasswordMutation.isPending ? "Changing..." : "Change Password"}
-                  </Button>
-                </form>
-              </Form>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-yellow-600" />
+                  <h3 className="font-medium text-yellow-800">Password Change Disabled</h3>
+                </div>
+                <p className="text-yellow-700 text-sm mt-1">
+                  For security reasons, password changes must be requested through your administrator. 
+                  Please contact system support if you need to change your password.
+                </p>
+                <div className="mt-3 p-3 bg-white rounded border">
+                  <p className="text-sm text-gray-600">
+                    <strong>Security Features Active:</strong>
+                  </p>
+                  <ul className="text-sm text-gray-600 list-disc list-inside mt-1 space-y-1">
+                    <li>Account is protected with role-based access</li>
+                    <li>Email address is locked for security</li>
+                    <li>Password changes require administrative approval</li>
+                  </ul>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
