@@ -401,27 +401,54 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createResult(result: InsertResult): Promise<Result> {
-    // Calculate total votes from all categories
-    let totalVotes = result.invalidVotes;
+    // Get polling center details to check registered voters
+    const pollingCenter = await this.getPollingCenter(result.pollingCenterId);
+    if (!pollingCenter) {
+      throw new Error("Polling center not found");
+    }
+
+    // Calculate votes for each category
+    const presidentialTotal = result.presidentialVotes ? 
+      Object.values(result.presidentialVotes as Record<string, number>).reduce((sum, votes) => sum + votes, 0) : 0;
     
-    if (result.presidentialVotes) {
-      const presidentialTotal = Object.values(result.presidentialVotes as Record<string, number>).reduce((sum, votes) => sum + votes, 0);
-      totalVotes += presidentialTotal;
+    const mpTotal = result.mpVotes ? 
+      Object.values(result.mpVotes as Record<string, number>).reduce((sum, votes) => sum + votes, 0) : 0;
+    
+    const councilorTotal = result.councilorVotes ? 
+      Object.values(result.councilorVotes as Record<string, number>).reduce((sum, votes) => sum + votes, 0) : 0;
+
+    // Calculate total votes from all categories plus invalid votes
+    const totalVotes = presidentialTotal + mpTotal + councilorTotal + result.invalidVotes;
+
+    // Validation logic for tripartite election
+    // Each voter votes 3 times (once for each category), so max valid votes per category = registered voters
+    // Total votes across all categories should not exceed registered voters * 3
+    const maxTotalVotes = pollingCenter.registeredVoters * 3;
+    const maxVotesPerCategory = pollingCenter.registeredVoters;
+    
+    let status = result.status || 'pending';
+    let flaggedReason = result.flaggedReason;
+
+    // Flag if any individual category exceeds registered voters
+    if (presidentialTotal > maxVotesPerCategory || mpTotal > maxVotesPerCategory || councilorTotal > maxVotesPerCategory) {
+      status = 'flagged';
+      flaggedReason = `Votes in one or more categories exceed registered voters (${maxVotesPerCategory}). Presidential: ${presidentialTotal}, MP: ${mpTotal}, Councilor: ${councilorTotal}`;
     }
     
-    if (result.mpVotes) {
-      const mpTotal = Object.values(result.mpVotes as Record<string, number>).reduce((sum, votes) => sum + votes, 0);
-      totalVotes += mpTotal;
-    }
-    
-    if (result.councilorVotes) {
-      const councilorTotal = Object.values(result.councilorVotes as Record<string, number>).reduce((sum, votes) => sum + votes, 0);
-      totalVotes += councilorTotal;
+    // Flag if total votes across all categories exceed theoretical maximum
+    else if (totalVotes > maxTotalVotes) {
+      status = 'flagged';
+      flaggedReason = `Total votes (${totalVotes}) exceed maximum possible for tripartite election (${maxTotalVotes} = ${pollingCenter.registeredVoters} registered voters × 3 categories)`;
     }
 
     const [newResult] = await db
       .insert(results)
-      .values({ ...result, totalVotes })
+      .values({ 
+        ...result, 
+        totalVotes, 
+        status,
+        flaggedReason
+      })
       .returning();
     return newResult;
   }
