@@ -48,6 +48,8 @@ export function PoliticalPartiesPage() {
   const [editingParty, setEditingParty] = useState<PoliticalParty | null>(null);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const [currentPage, setCurrentPage] = useState(1);
+  const [candidatesModalOpen, setCandidatesModalOpen] = useState(false);
+  const [selectedParty, setSelectedParty] = useState<PoliticalParty | null>(null);
   const itemsPerPage = 12;
   const { toast } = useToast();
 
@@ -78,9 +80,9 @@ export function PoliticalPartiesPage() {
   };
 
   // Pagination logic
-  const totalPages = parties ? Math.ceil(parties.length / itemsPerPage) : 0;
+  const totalPages = parties ? Math.ceil((parties as any[]).length / itemsPerPage) : 0;
   const paginatedParties = parties 
-    ? parties.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    ? (parties as any[]).slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
     : [];
 
   const createPartyMutation = useMutation({
@@ -568,12 +570,8 @@ export function PoliticalPartiesPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    // View party candidates details - will implement navigation to candidates filtered by party
-                    const candidateCount = getCandidateCount(party.id, party.name);
-                    toast({
-                      title: `${party.name} Details`,
-                      description: `This party has ${candidateCount} registered candidate${candidateCount !== 1 ? 's' : ''}.`,
-                    });
+                    setSelectedParty(party);
+                    setCandidatesModalOpen(true);
                   }}
                   className="text-blue-600 border-blue-200 hover:bg-blue-50"
                   data-testid={`button-view-details-${party.id}`}
@@ -674,8 +672,8 @@ export function PoliticalPartiesPage() {
                   <Button
                     variant={party.isActive ? "destructive" : "default"}
                     size="sm"
-                    onClick={() => togglePartyMutation.mutate(party.id)}
-                    disabled={togglePartyMutation.isPending}
+                    onClick={() => party.isActive ? handleDeactivate(party) : handleReactivate(party)}
+                    disabled={party.isActive ? deactivatePartyMutation.isPending : reactivatePartyMutation.isPending}
                     data-testid={`button-toggle-list-${party.id}`}
                   >
                     {party.isActive ? (
@@ -759,6 +757,121 @@ export function PoliticalPartiesPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Candidates Modal */}
+      <Dialog open={candidatesModalOpen} onOpenChange={setCandidatesModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              {selectedParty?.name} Candidates
+            </DialogTitle>
+            <DialogDescription>
+              Breakdown of all candidates registered under {selectedParty?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedParty && (
+            <div className="space-y-6">
+              {/* Party Summary */}
+              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {(selectedParty as any).logoUrl ? (
+                        <img 
+                          src={(selectedParty as any).logoUrl} 
+                          alt={`${selectedParty.name} logo`}
+                          className="w-12 h-12 object-contain rounded border"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/api/placeholder/48/48';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-100 rounded border flex items-center justify-center">
+                          <Image className="h-6 w-6 text-gray-400" />
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="font-bold text-lg">{selectedParty.name}</h3>
+                        {selectedParty.abbreviation && (
+                          <Badge 
+                            style={{ backgroundColor: selectedParty.color || "#6B7280" }}
+                            className="text-white text-xs"
+                          >
+                            {selectedParty.abbreviation}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {getCandidateCount(selectedParty.id, selectedParty.name)}
+                      </div>
+                      <div className="text-sm text-gray-600">Total Candidates</div>
+                    </div>
+                  </div>
+                  {selectedParty.description && (
+                    <p className="mt-3 text-sm text-gray-700">{selectedParty.description}</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Candidates Breakdown */}
+              {candidates && (
+                <div className="space-y-4">
+                  {['president', 'mp', 'councilor'].map(category => {
+                    const categoryCandidates = (candidates as any[]).filter((candidate: any) => 
+                      (candidate.partyId === selectedParty.id || candidate.party === selectedParty.name) &&
+                      candidate.category === category
+                    );
+
+                    if (categoryCandidates.length === 0) return null;
+
+                    return (
+                      <Card key={category}>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg capitalize flex items-center gap-2">
+                            <Shield className="h-5 w-5" />
+                            {category === 'mp' ? 'Member of Parliament' : category.charAt(0).toUpperCase() + category.slice(1)} 
+                            <Badge variant="secondary">{categoryCandidates.length}</Badge>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid gap-3">
+                            {categoryCandidates.map((candidate: any) => (
+                              <div key={candidate.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div>
+                                  <div className="font-medium">{candidate.name}</div>
+                                  {candidate.constituency && (
+                                    <div className="text-sm text-gray-600">{candidate.constituency}</div>
+                                  )}
+                                </div>
+                                <Badge variant={candidate.isActive ? "default" : "secondary"}>
+                                  {candidate.isActive ? "Active" : "Inactive"}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                  
+                  {getCandidateCount(selectedParty.id, selectedParty.name) === 0 && (
+                    <Card>
+                      <CardContent className="text-center py-8">
+                        <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600">No candidates registered for this party yet.</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

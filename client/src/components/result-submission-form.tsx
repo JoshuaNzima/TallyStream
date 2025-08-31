@@ -162,8 +162,8 @@ export default function ResultSubmissionForm() {
     const candidateVotes = [];
     if (votes) {
       for (const [candidateId, voteCount] of Object.entries(votes)) {
-        const candidate = candidates?.find((c: any) => c.id === candidateId);
-        const party = politicalParties?.find((p: any) => p.id === candidate?.partyId || p.name === candidate?.party);
+        const candidate = (candidates as any[])?.find((c: any) => c.id === candidateId);
+        const party = (politicalParties as any[])?.find((p: any) => p.id === candidate?.partyId || p.name === candidate?.party);
         if (candidate && Number(voteCount) > 0) {
           candidateVotes.push({
             candidate: candidate.name,
@@ -290,7 +290,19 @@ export default function ResultSubmissionForm() {
                       <TableBody>
                         {candidates && Array.isArray(candidates) && 
                          (candidates as any[])
-                          .filter((c: any) => c.category === form.watch("category"))
+                          .filter((c: any) => {
+                            // Filter by category
+                            if (c.category !== form.watch("category")) return false;
+                            
+                            // For presidential elections, show all candidates (no constituency restriction)
+                            if (form.watch("category") === "president") return true;
+                            
+                            // For MP and councilor elections, filter by constituency
+                            const selectedPollingCenter = (pollingCenters as any[])?.find((pc: any) => pc.id === form.watch("pollingCenterId"));
+                            if (!selectedPollingCenter) return true; // Show all if no polling center selected
+                            
+                            return c.constituency === selectedPollingCenter.constituency;
+                          })
                           .sort((a: any, b: any) => {
                             const partyA = (politicalParties as any[])?.find((p: any) => p.id === a.partyId || p.name === a.party)?.name || a.party;
                             const partyB = (politicalParties as any[])?.find((p: any) => p.id === b.partyId || p.name === b.party)?.name || b.party;
@@ -332,7 +344,9 @@ export default function ResultSubmissionForm() {
                                             min="0" 
                                             className="w-20 text-right" 
                                             placeholder="0"
-                                            {...field} 
+                                            {...field}
+                                            value={field.value || ""}
+                                            onChange={(e) => field.onChange(e.target.value)}
                                             data-testid={`input-votes-${candidate.id}`} 
                                           />
                                         </FormControl>

@@ -31,7 +31,7 @@ export function useWebSocket() {
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const wsUrl = `${protocol}//${window.location.hostname}:${window.location.port || (protocol === "wss:" ? "443" : "80")}/ws`;
     
     const connect = () => {
       try {

@@ -84,6 +84,52 @@ export default function AdminManagement() {
     },
   });
 
+  // Toggle candidate active status
+  const toggleCandidateMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const endpoint = isActive ? `/api/candidates/${id}/deactivate` : `/api/candidates/${id}/reactivate`;
+      const res = await apiRequest("PUT", endpoint);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Candidate status updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update candidate status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Toggle polling center active status
+  const togglePollingCenterMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const endpoint = isActive ? `/api/polling-centers/${id}/deactivate` : `/api/polling-centers/${id}/reactivate`;
+      const res = await apiRequest("PUT", endpoint);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Polling center status updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/polling-centers"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update polling center status",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Add candidate mutation
   const addCandidateMutation = useMutation({
     mutationFn: async (candidateData: any) => {
@@ -438,12 +484,10 @@ export default function AdminManagement() {
                           size="sm"
                           onClick={() => {
                             if (confirm(`Are you sure you want to ${candidate.isActive ? 'disable' : 'enable'} ${candidate.name}?`)) {
-                              toast({
-                                title: candidate.isActive ? "Candidate Disabled" : "Candidate Enabled",
-                                description: `${candidate.name} has been ${candidate.isActive ? 'disabled' : 'enabled'}.`,
-                              });
+                              toggleCandidateMutation.mutate({ id: candidate.id, isActive: candidate.isActive });
                             }
                           }}
+                          disabled={toggleCandidateMutation.isPending}
                           className={candidate.isActive ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
                           data-testid={`button-toggle-candidate-${candidate.id}`}
                         >
@@ -591,12 +635,10 @@ export default function AdminManagement() {
                         size="sm"
                         onClick={() => {
                           if (confirm(`Are you sure you want to ${center.isActive ? 'disable' : 'enable'} polling center ${center.code}?`)) {
-                            toast({
-                              title: center.isActive ? "Polling Center Disabled" : "Polling Center Enabled",
-                              description: `${center.code} - ${center.name} has been ${center.isActive ? 'disabled' : 'enabled'}.`,
-                            });
+                            togglePollingCenterMutation.mutate({ id: center.id, isActive: center.isActive });
                           }
                         }}
+                        disabled={togglePollingCenterMutation.isPending}
                         className={center.isActive ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
                         data-testid={`button-toggle-center-${center.id}`}
                       >
