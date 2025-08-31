@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { User, Settings, Key, Shield } from "lucide-react";
+import { User, Settings, Key, Shield, Mail, Phone, CheckCircle, XCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 const profileSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -29,12 +30,19 @@ const passwordSchema = z.object({
   path: ["confirmPassword"],
 });
 
+const verificationSchema = z.object({
+  code: z.string().length(6, "Code must be 6 digits"),
+});
+
 type ProfileData = z.infer<typeof profileSchema>;
 type PasswordData = z.infer<typeof passwordSchema>;
+type VerificationData = z.infer<typeof verificationSchema>;
 
 export default function Profile() {
   const { toast } = useToast();
   const [twoFaEnabled, setTwoFaEnabled] = useState(false);
+  const [emailVerificationSent, setEmailVerificationSent] = useState(false);
+  const [phoneVerificationSent, setPhoneVerificationSent] = useState(false);
 
   const { data: currentUser } = useQuery({
     queryKey: ["/api/auth/user"],
@@ -57,6 +65,16 @@ export default function Profile() {
       newPassword: "",
       confirmPassword: "",
     },
+  });
+
+  const emailVerificationForm = useForm<VerificationData>({
+    resolver: zodResolver(verificationSchema),
+    defaultValues: { code: "" },
+  });
+
+  const phoneVerificationForm = useForm<VerificationData>({
+    resolver: zodResolver(verificationSchema),
+    defaultValues: { code: "" },
   });
 
   const updateProfileMutation = useMutation({
@@ -111,6 +129,95 @@ export default function Profile() {
   const onChangePassword = (data: PasswordData) => {
     changePasswordMutation.mutate(data);
   };
+
+  // Verification mutations
+  const sendEmailVerificationMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/auth/verify-email/send", {});
+      return response.json();
+    },
+    onSuccess: () => {
+      setEmailVerificationSent(true);
+      toast({
+        title: "Verification code sent",
+        description: "Check your email for the 6-digit verification code",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to send verification code",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const confirmEmailVerificationMutation = useMutation({
+    mutationFn: async (data: VerificationData) => {
+      const response = await apiRequest("POST", "/api/auth/verify-email/confirm", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      setEmailVerificationSent(false);
+      emailVerificationForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Email verified",
+        description: "Your email has been verified successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Invalid verification code",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const sendPhoneVerificationMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/auth/verify-phone/send", {});
+      return response.json();
+    },
+    onSuccess: () => {
+      setPhoneVerificationSent(true);
+      toast({
+        title: "Verification code sent",
+        description: "Check your phone for the 6-digit verification code",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to send verification code",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const confirmPhoneVerificationMutation = useMutation({
+    mutationFn: async (data: VerificationData) => {
+      const response = await apiRequest("POST", "/api/auth/verify-phone/confirm", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      setPhoneVerificationSent(false);
+      phoneVerificationForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Phone verified",
+        description: "Your phone has been verified successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Invalid verification code",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Update form values when user data loads
   if (currentUser && profileForm.getValues().firstName !== (currentUser as any).firstName) {
@@ -246,26 +353,179 @@ export default function Profile() {
                 Password Management
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
+              {/* Email Verification Section */}
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-5 h-5" />
+                    <h3 className="font-medium">Email Verification</h3>
+                    {(currentUser as any)?.emailVerified ? (
+                      <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Verified
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive">
+                        <XCircle className="w-3 h-3 mr-1" />
+                        Not Verified
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                
+                {!(currentUser as any)?.emailVerified && (
+                  <div className="space-y-3">
+                    {!emailVerificationSent ? (
+                      <Button
+                        onClick={() => sendEmailVerificationMutation.mutate()}
+                        disabled={sendEmailVerificationMutation.isPending}
+                        variant="outline"
+                        data-testid="button-send-email-verification"
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        {sendEmailVerificationMutation.isPending ? "Sending..." : "Send Verification Code"}
+                      </Button>
+                    ) : (
+                      <Form {...emailVerificationForm}>
+                        <form
+                          onSubmit={emailVerificationForm.handleSubmit((data) => 
+                            confirmEmailVerificationMutation.mutate(data)
+                          )}
+                          className="space-y-3"
+                        >
+                          <FormField
+                            control={emailVerificationForm.control}
+                            name="code"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Enter 6-digit code from email</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    {...field} 
+                                    placeholder="123456"
+                                    maxLength={6}
+                                    data-testid="input-email-verification-code"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <div className="flex space-x-2">
+                            <Button
+                              type="submit"
+                              disabled={confirmEmailVerificationMutation.isPending}
+                              data-testid="button-confirm-email-verification"
+                            >
+                              {confirmEmailVerificationMutation.isPending ? "Verifying..." : "Verify Email"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setEmailVerificationSent(false)}
+                              data-testid="button-cancel-email-verification"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </form>
+                      </Form>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Phone Verification Section */}
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-5 h-5" />
+                    <h3 className="font-medium">Phone Verification</h3>
+                    {(currentUser as any)?.phoneVerified ? (
+                      <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Verified
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive">
+                        <XCircle className="w-3 h-3 mr-1" />
+                        Not Verified
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                
+                {!(currentUser as any)?.phoneVerified && (
+                  <div className="space-y-3">
+                    {!phoneVerificationSent ? (
+                      <Button
+                        onClick={() => sendPhoneVerificationMutation.mutate()}
+                        disabled={sendPhoneVerificationMutation.isPending}
+                        variant="outline"
+                        data-testid="button-send-phone-verification"
+                      >
+                        <Phone className="w-4 h-4 mr-2" />
+                        {sendPhoneVerificationMutation.isPending ? "Sending..." : "Send Verification Code"}
+                      </Button>
+                    ) : (
+                      <Form {...phoneVerificationForm}>
+                        <form
+                          onSubmit={phoneVerificationForm.handleSubmit((data) => 
+                            confirmPhoneVerificationMutation.mutate(data)
+                          )}
+                          className="space-y-3"
+                        >
+                          <FormField
+                            control={phoneVerificationForm.control}
+                            name="code"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Enter 6-digit code from SMS</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    {...field} 
+                                    placeholder="123456"
+                                    maxLength={6}
+                                    data-testid="input-phone-verification-code"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <div className="flex space-x-2">
+                            <Button
+                              type="submit"
+                              disabled={confirmPhoneVerificationMutation.isPending}
+                              data-testid="button-confirm-phone-verification"
+                            >
+                              {confirmPhoneVerificationMutation.isPending ? "Verifying..." : "Verify Phone"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setPhoneVerificationSent(false)}
+                              data-testid="button-cancel-phone-verification"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </form>
+                      </Form>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <div className="flex items-center gap-2">
                   <Shield className="w-5 h-5 text-yellow-600" />
-                  <h3 className="font-medium text-yellow-800">Password Change Disabled</h3>
+                  <h3 className="font-medium text-yellow-800">Security Notice</h3>
                 </div>
                 <p className="text-yellow-700 text-sm mt-1">
-                  For security reasons, password changes must be requested through your administrator. 
-                  Please contact system support if you need to change your password.
+                  Profile updates are limited to once per month for security. Verify your email and phone for enhanced security.
                 </p>
-                <div className="mt-3 p-3 bg-white rounded border">
-                  <p className="text-sm text-gray-600">
-                    <strong>Security Features Active:</strong>
-                  </p>
-                  <ul className="text-sm text-gray-600 list-disc list-inside mt-1 space-y-1">
-                    <li>Account is protected with role-based access</li>
-                    <li>Email address is locked for security</li>
-                    <li>Password changes require administrative approval</li>
-                  </ul>
-                </div>
               </div>
             </CardContent>
           </Card>

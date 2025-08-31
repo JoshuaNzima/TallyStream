@@ -198,6 +198,24 @@ export class DatabaseStorage implements IStorage {
     return newCenter;
   }
 
+  async reactivatePollingCenter(id: string): Promise<PollingCenter> {
+    const [reactivatedCenter] = await db
+      .update(pollingCenters)
+      .set({ isActive: true, updatedAt: new Date() })
+      .where(eq(pollingCenters.id, id))
+      .returning();
+    return reactivatedCenter;
+  }
+
+  async deactivatePollingCenter(id: string): Promise<PollingCenter> {
+    const [deactivatedCenter] = await db
+      .update(pollingCenters)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(pollingCenters.id, id))
+      .returning();
+    return deactivatedCenter;
+  }
+
   // Political party operations
   async getPoliticalParties(): Promise<PoliticalParty[]> {
     return await db.select().from(politicalParties).where(eq(politicalParties.isActive, true)).orderBy(politicalParties.name);
@@ -259,6 +277,24 @@ export class DatabaseStorage implements IStorage {
   async createCandidate(candidate: InsertCandidate): Promise<Candidate> {
     const [newCandidate] = await db.insert(candidates).values(candidate).returning();
     return newCandidate;
+  }
+
+  async reactivateCandidate(id: string): Promise<Candidate> {
+    const [reactivatedCandidate] = await db
+      .update(candidates)
+      .set({ isActive: true })
+      .where(eq(candidates.id, id))
+      .returning();
+    return reactivatedCandidate;
+  }
+
+  async deactivateCandidate(id: string): Promise<Candidate> {
+    const [deactivatedCandidate] = await db
+      .update(candidates)
+      .set({ isActive: false })
+      .where(eq(candidates.id, id))
+      .returning();
+    return deactivatedCandidate;
   }
 
   // Result operations
@@ -487,7 +523,7 @@ export class DatabaseStorage implements IStorage {
         lastName: submission.submitterLastName || 'User' 
       },
       totalVotes: submission.totalVotes || 0,
-      createdAt: submission.createdAt,
+      createdAt: submission.createdAt || new Date(),
     }));
   }
 

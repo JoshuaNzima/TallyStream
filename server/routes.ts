@@ -195,12 +195,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/auth/profile", isAuthenticated, async (req: any, res) => {
     try {
       const { firstName, lastName, email, phone } = req.body;
+      const user = req.user;
+      
+      // Check if last profile update was less than 30 days ago
+      if (user.lastProfileUpdate) {
+        const daysSinceLastUpdate = (new Date().getTime() - new Date(user.lastProfileUpdate).getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceLastUpdate < 30) {
+          const daysRemaining = Math.ceil(30 - daysSinceLastUpdate);
+          return res.status(400).json({ 
+            message: `Profile can only be updated once per month. Please wait ${daysRemaining} more day${daysRemaining !== 1 ? 's' : ''}.` 
+          });
+        }
+      }
       
       const updatedUser = await storage.updateUser(req.user.id, {
         firstName,
         lastName,
         email,
         phone,
+        lastProfileUpdate: new Date(),
         updatedAt: new Date(),
       });
 
@@ -208,6 +221,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating profile:", error);
       res.status(400).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Email verification routes
+  app.post("/api/auth/verify-email/send", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const verificationToken = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
+      const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes from now
+      
+      await storage.updateUser(user.id, {
+        emailVerificationToken: verificationToken,
+        emailVerificationExpiry: expiry,
+      });
+
+      // In real implementation, send email with verification code
+      console.log(`Email verification code for ${user.email}: ${verificationToken}`);
+      
+      res.json({ message: "Verification code sent to your email" });
+    } catch (error) {
+      console.error("Error sending email verification:", error);
+      res.status(500).json({ message: "Failed to send verification code" });
+    }
+  });
+
+  app.post("/api/auth/verify-email/confirm", isAuthenticated, async (req: any, res) => {
+    try {
+      const { code } = req.body;
+      const user = req.user;
+      
+      if (!user.emailVerificationToken || !user.emailVerificationExpiry) {
+        return res.status(400).json({ message: "No verification code pending" });
+      }
+      
+      if (new Date() > new Date(user.emailVerificationExpiry)) {
+        return res.status(400).json({ message: "Verification code expired" });
+      }
+      
+      if (user.emailVerificationToken !== code) {
+        return res.status(400).json({ message: "Invalid verification code" });
+      }
+      
+      await storage.updateUser(user.id, {
+        emailVerified: true,
+        emailVerificationToken: null,
+        emailVerificationExpiry: null,
+      });
+      
+      res.json({ message: "Email verified successfully" });
+    } catch (error) {
+      console.error("Error verifying email:", error);
+      res.status(500).json({ message: "Failed to verify email" });
+    }
+  });
+
+  // Phone verification routes  
+  app.post("/api/auth/verify-phone/send", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const verificationToken = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
+      const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes from now
+      
+      await storage.updateUser(user.id, {
+        phoneVerificationToken: verificationToken,
+        phoneVerificationExpiry: expiry,
+      });
+
+      // In real implementation, send SMS with verification code
+      console.log(`Phone verification code for ${user.phone}: ${verificationToken}`);
+      
+      res.json({ message: "Verification code sent to your phone" });
+    } catch (error) {
+      console.error("Error sending phone verification:", error);
+      res.status(500).json({ message: "Failed to send verification code" });
+    }
+  });
+
+  app.post("/api/auth/verify-phone/confirm", isAuthenticated, async (req: any, res) => {
+    try {
+      const { code } = req.body;
+      const user = req.user;
+      
+      if (!user.phoneVerificationToken || !user.phoneVerificationExpiry) {
+        return res.status(400).json({ message: "No verification code pending" });
+      }
+      
+      if (new Date() > new Date(user.phoneVerificationExpiry)) {
+        return res.status(400).json({ message: "Verification code expired" });
+      }
+      
+      if (user.phoneVerificationToken !== code) {
+        return res.status(400).json({ message: "Invalid verification code" });
+      }
+      
+      await storage.updateUser(user.id, {
+        phoneVerified: true,
+        phoneVerificationToken: null,
+        phoneVerificationExpiry: null,
+      });
+      
+      res.json({ message: "Phone verified successfully" });
+    } catch (error) {
+      console.error("Error verifying phone:", error);
+      res.status(500).json({ message: "Failed to verify phone" });
     }
   });
 
@@ -303,6 +420,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching polling centers:", error);
       res.status(500).json({ message: "Failed to fetch polling centers" });
+    }
+  });
+
+  app.put("/api/polling-centers/:id/reactivate", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const center = await storage.reactivatePollingCenter(req.params.id);
+      res.json(center);
+    } catch (error) {
+      console.error("Error reactivating polling center:", error);
+      res.status(500).json({ message: "Failed to reactivate polling center" });
+    }
+  });
+
+  app.put("/api/polling-centers/:id/deactivate", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const center = await storage.deactivatePollingCenter(req.params.id);
+      res.json(center);
+    } catch (error) {
+      console.error("Error deactivating polling center:", error);
+      res.status(500).json({ message: "Failed to deactivate polling center" });
     }
   });
 
@@ -524,6 +671,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching candidates:", error);
       res.status(500).json({ message: "Failed to fetch candidates" });
+    }
+  });
+
+  app.put("/api/candidates/:id/reactivate", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const candidate = await storage.reactivateCandidate(req.params.id);
+      res.json(candidate);
+    } catch (error) {
+      console.error("Error reactivating candidate:", error);
+      res.status(500).json({ message: "Failed to reactivate candidate" });
+    }
+  });
+
+  app.put("/api/candidates/:id/deactivate", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const candidate = await storage.deactivateCandidate(req.params.id);
+      res.json(candidate);
+    } catch (error) {
+      console.error("Error deactivating candidate:", error);
+      res.status(500).json({ message: "Failed to deactivate candidate" });
     }
   });
 

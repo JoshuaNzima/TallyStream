@@ -28,7 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Users, Shield, Edit, Trash2, ToggleLeft, ToggleRight, Eye, Upload, Image } from "lucide-react";
+import { Plus, Users, Shield, Edit, Trash2, ToggleLeft, ToggleRight, Eye, Upload, Image, Grid, List, ChevronLeft, ChevronRight } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPoliticalPartySchema } from "@shared/schema";
@@ -46,6 +46,9 @@ const formSchema = insertPoliticalPartySchema.extend({
 export function PoliticalPartiesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<PoliticalParty | null>(null);
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -73,6 +76,12 @@ export function PoliticalPartiesPage() {
       candidate.partyId === partyId || candidate.party === partyName
     ).length;
   };
+
+  // Pagination logic
+  const totalPages = parties ? Math.ceil(parties.length / itemsPerPage) : 0;
+  const paginatedParties = parties 
+    ? parties.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    : [];
 
   const createPartyMutation = useMutation({
     mutationFn: async (partyData: z.infer<typeof formSchema>) => {
@@ -472,10 +481,31 @@ export function PoliticalPartiesPage() {
             </Form>
           </DialogContent>
         </Dialog>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant={viewMode === 'card' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('card')}
+            data-testid="button-card-view"
+          >
+            <Grid className="h-4 w-4 mr-1" />
+            Cards
+          </Button>
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('list')}
+            data-testid="button-list-view"
+          >
+            <List className="h-4 w-4 mr-1" />
+            List
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {((parties as any[]) || []).map((party: PoliticalParty) => (
+      {viewMode === 'card' ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {paginatedParties.map((party: PoliticalParty) => (
           <Card key={party.id} data-testid={`card-party-${party.id}`}>
             <CardHeader className="space-y-0 pb-2">
               <CardTitle className="flex items-center justify-between">
@@ -599,8 +629,111 @@ export function PoliticalPartiesPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {paginatedParties.map((party: PoliticalParty) => (
+            <Card key={party.id} className="p-4" data-testid={`row-party-${party.id}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div
+                    className="w-4 h-4 rounded-full border"
+                    style={{ backgroundColor: party.color || '#6B7280' }}
+                  />
+                  <div>
+                    <div className="font-medium">{party.name}</div>
+                    {party.abbreviation && (
+                      <div className="text-sm text-muted-foreground">{party.abbreviation}</div>
+                    )}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {getCandidateCount(party.id, party.name)} candidates
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {/* Action buttons - same as card view */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditingParty(party);
+                      form.reset({
+                        name: party.name,
+                        abbreviation: party.abbreviation || "",
+                        description: party.description || "",
+                        color: party.color || "#6B7280",
+                        logoUrl: (party as any).logoUrl || "",
+                      });
+                      setIsDialogOpen(true);
+                    }}
+                    data-testid={`button-edit-list-${party.id}`}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={party.isActive ? "destructive" : "default"}
+                    size="sm"
+                    onClick={() => togglePartyMutation.mutate(party.id)}
+                    disabled={togglePartyMutation.isPending}
+                    data-testid={`button-toggle-list-${party.id}`}
+                  >
+                    {party.isActive ? (
+                      <>
+                        <ToggleLeft className="h-4 w-4" />
+                        Disable
+                      </>
+                    ) : (
+                      <>
+                        <ToggleRight className="h-4 w-4" />
+                        Enable
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => deletePartyMutation.mutate(party.id)}
+                    disabled={deletePartyMutation.isPending}
+                    data-testid={`button-delete-list-${party.id}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center space-x-2 mt-6">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+            data-testid="button-prev-page"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+            data-testid="button-next-page"
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {(parties as any[]) && (parties as any[]).length === 0 && (
         <Card data-testid="empty-parties">

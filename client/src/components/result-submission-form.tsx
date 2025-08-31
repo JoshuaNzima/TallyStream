@@ -217,7 +217,7 @@ export default function ResultSubmissionForm() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {pollingCenters && Array.isArray(pollingCenters) && pollingCenters.map((center: any) => (
+                        {pollingCenters && Array.isArray(pollingCenters) && (pollingCenters as any[]).map((center: any) => (
                           <SelectItem key={center.id} value={center.id}>
                             {center.code} - {center.name}
                           </SelectItem>
@@ -289,7 +289,7 @@ export default function ResultSubmissionForm() {
                       </TableHeader>
                       <TableBody>
                         {candidates && Array.isArray(candidates) && 
-                         candidates
+                         (candidates as any[])
                           .filter((c: any) => c.category === form.watch("category"))
                           .sort((a: any, b: any) => {
                             const partyA = (politicalParties as any[])?.find((p: any) => p.id === a.partyId || p.name === a.party)?.name || a.party;

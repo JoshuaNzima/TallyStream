@@ -39,6 +39,8 @@ export default function PartyPerformanceChart() {
       const params = selectedCategory !== 'all' ? `?category=${selectedCategory}` : '';
       return fetch(`/api/party-performance${params}`, { credentials: "include" }).then(res => res.json());
     },
+    refetchInterval: 2000, // Update every 2 seconds for real-time updates
+    refetchOnWindowFocus: true,
   });
 
   if (isLoading) {

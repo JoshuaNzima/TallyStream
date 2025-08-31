@@ -32,7 +32,7 @@ export const userRoleEnum = pgEnum('user_role', ['agent', 'supervisor', 'admin',
 export const resultStatusEnum = pgEnum('result_status', ['pending', 'verified', 'flagged', 'rejected']);
 
 // Submission channel enum
-export const submissionChannelEnum = pgEnum('submission_channel', ['whatsapp', 'portal', 'both']);
+export const submissionChannelEnum = pgEnum('submission_channel', ['whatsapp', 'portal', 'ussd', 'both']);
 
 // Candidate category enum
 export const candidateCategoryEnum = pgEnum('candidate_category', ['president', 'mp', 'councilor']);
@@ -52,6 +52,11 @@ export const users = pgTable("users", {
   phoneVerified: boolean("phone_verified").default(false).notNull(),
   isApproved: boolean("is_approved").default(false).notNull(),
   lastLoginAt: timestamp("last_login_at"),
+  lastProfileUpdate: timestamp("last_profile_update"),
+  emailVerificationToken: varchar("email_verification_token"),
+  phoneVerificationToken: varchar("phone_verification_token"),
+  emailVerificationExpiry: timestamp("email_verification_expiry"),
+  phoneVerificationExpiry: timestamp("phone_verification_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -292,5 +297,5 @@ export type ResultWithRelations = Result & {
 
 export type UserRole = 'agent' | 'supervisor' | 'admin' | 'reviewer';
 export type ResultStatus = 'pending' | 'verified' | 'flagged' | 'rejected';
-export type SubmissionChannel = 'whatsapp' | 'portal' | 'both';
+export type SubmissionChannel = 'whatsapp' | 'portal' | 'ussd' | 'both';
 export type CandidateCategory = 'president' | 'mp' | 'councilor';
