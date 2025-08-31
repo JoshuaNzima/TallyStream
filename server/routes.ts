@@ -375,6 +375,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/political-parties/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (user?.role !== 'admin' && user?.role !== 'supervisor') {
+        return res.status(403).json({ message: "Access denied. Admin or supervisor role required." });
+      }
+
+      const { id } = req.params;
+      const validatedData = insertPoliticalPartySchema.partial().parse(req.body);
+      
+      // Get current party for audit log
+      const currentParties = await storage.getPoliticalParties();
+      const currentParty = currentParties.find(p => p.id === id);
+      
+      const updatedParty = await storage.updatePoliticalParty(id, validatedData);
+      
+      // Log the action
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'update',
+        entityType: 'political_party',
+        entityId: id,
+        oldValues: JSON.stringify(currentParty),
+        newValues: JSON.stringify(updatedParty),
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      res.json(updatedParty);
+    } catch (error) {
+      console.error("Error updating political party:", error);
+      res.status(400).json({ message: "Failed to update political party" });
+    }
+  });
+
+  app.put("/api/political-parties/:id/deactivate", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (user?.role !== 'admin' && user?.role !== 'supervisor') {
+        return res.status(403).json({ message: "Access denied. Admin or supervisor role required." });
+      }
+
+      const { id } = req.params;
+      
+      // Get current party for audit log
+      const currentParties = await storage.getPoliticalParties();
+      const currentParty = currentParties.find(p => p.id === id);
+      
+      const deactivatedParty = await storage.deactivatePoliticalParty(id);
+      
+      // Log the action
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'deactivate',
+        entityType: 'political_party',
+        entityId: id,
+        oldValues: JSON.stringify(currentParty),
+        newValues: JSON.stringify(deactivatedParty),
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      res.json(deactivatedParty);
+    } catch (error) {
+      console.error("Error deactivating political party:", error);
+      res.status(400).json({ message: "Failed to deactivate political party" });
+    }
+  });
+
+  app.put("/api/political-parties/:id/reactivate", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (user?.role !== 'admin' && user?.role !== 'supervisor') {
+        return res.status(403).json({ message: "Access denied. Admin or supervisor role required." });
+      }
+
+      const { id } = req.params;
+      
+      // Get current party for audit log
+      const currentParties = await storage.getPoliticalParties();
+      const currentParty = currentParties.find(p => p.id === id);
+      
+      const reactivatedParty = await storage.updatePoliticalParty(id, { isActive: true });
+      
+      // Log the action
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'reactivate',
+        entityType: 'political_party',
+        entityId: id,
+        oldValues: JSON.stringify(currentParty),
+        newValues: JSON.stringify(reactivatedParty),
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      res.json(reactivatedParty);
+    } catch (error) {
+      console.error("Error reactivating political party:", error);
+      res.status(400).json({ message: "Failed to reactivate political party" });
+    }
+  });
+
   app.get("/api/candidates", isAuthenticated, async (req, res) => {
     try {
       const candidates = await storage.getCandidates();
@@ -622,6 +725,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating user role:", error);
       res.status(400).json({ message: "Failed to update user role" });
+    }
+  });
+
+  app.patch("/api/users/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.id);
+      if (currentUser?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { firstName, lastName, email, phone } = req.body;
+      const userId = req.params.id;
+
+      // Validate input
+      if (firstName && firstName.length < 2) {
+        return res.status(400).json({ message: "First name must be at least 2 characters" });
+      }
+      if (lastName && lastName.length < 2) {
+        return res.status(400).json({ message: "Last name must be at least 2 characters" });
+      }
+      if (email && !/\S+@\S+\.\S+/.test(email)) {
+        return res.status(400).json({ message: "Please enter a valid email" });
+      }
+
+      // Check if email already exists for another user
+      if (email) {
+        const existingUser = await storage.getUserByIdentifier(email);
+        if (existingUser && existingUser.id !== userId) {
+          return res.status(400).json({ message: "Email is already in use by another user" });
+        }
+      }
+
+      // Check if phone already exists for another user
+      if (phone) {
+        const existingUser = await storage.getUserByIdentifier(phone);
+        if (existingUser && existingUser.id !== userId) {
+          return res.status(400).json({ message: "Phone number is already in use by another user" });
+        }
+      }
+
+      const updateData: any = { updatedAt: new Date() };
+      if (firstName !== undefined) updateData.firstName = firstName;
+      if (lastName !== undefined) updateData.lastName = lastName;
+      if (email !== undefined) updateData.email = email || null;
+      if (phone !== undefined) updateData.phone = phone || null;
+
+      const updatedUser = await storage.updateUser(userId, updateData);
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: "UPDATE",
+        entityType: "user",
+        entityId: userId,
+        newValues: { firstName, lastName, email, phone },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(400).json({ message: "Failed to update user" });
     }
   });
 

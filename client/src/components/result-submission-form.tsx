@@ -22,7 +22,6 @@ const formSchema = z.object({
   mpVotes: z.record(z.coerce.number().min(0)).optional(),
   councilorVotes: z.record(z.coerce.number().min(0)).optional(),
   invalidVotes: z.coerce.number().min(0, "Invalid votes must be non-negative"),
-  submissionChannel: z.enum(["whatsapp", "portal", "both"]),
   comments: z.string().optional(),
 });
 
@@ -40,6 +39,10 @@ export default function ResultSubmissionForm() {
     queryKey: ["/api/candidates"],
   });
 
+  const { data: politicalParties } = useQuery({
+    queryKey: ["/api/political-parties"],
+  });
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -49,7 +52,6 @@ export default function ResultSubmissionForm() {
       mpVotes: {},
       councilorVotes: {},
       invalidVotes: 0,
-      submissionChannel: "portal",
       comments: "",
     },
   });
@@ -136,7 +138,7 @@ export default function ResultSubmissionForm() {
       <CardContent className="p-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6">
               <FormField
                 control={form.control}
                 name="pollingCenterId"
@@ -162,28 +164,6 @@ export default function ResultSubmissionForm() {
                 )}
               />
               
-              <FormField
-                control={form.control}
-                name="submissionChannel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Submission Channel</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-submission-channel">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="portal">Portal Only</SelectItem>
-                        <SelectItem value="whatsapp">WhatsApp Only</SelectItem>
-                        <SelectItem value="both">Both Channels</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
 
             <div className="border rounded-lg p-4">
@@ -226,8 +206,24 @@ export default function ResultSubmissionForm() {
                         name={`presidentialVotes.${candidate.id}`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-sm">
-                              {candidate.name} ({candidate.party})
+                            <FormLabel className="text-sm flex items-center gap-2">
+                              <span>{candidate.name}</span>
+                              {(() => {
+                                const party = politicalParties?.find((p: any) => p.id === candidate.partyId || p.name === candidate.party);
+                                return party ? (
+                                  <span className="flex items-center gap-1">
+                                    <div 
+                                      className="w-3 h-3 rounded-full" 
+                                      style={{ backgroundColor: party.color || "#6B7280" }}
+                                    />
+                                    <span className="text-xs font-medium">
+                                      {party.abbreviation || party.name}
+                                    </span>
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-gray-500">({candidate.party})</span>
+                                );
+                              })()}
                             </FormLabel>
                             <FormControl>
                               <Input type="number" min="0" {...field} data-testid={`input-votes-${candidate.id}`} />
@@ -251,8 +247,25 @@ export default function ResultSubmissionForm() {
                         name={`mpVotes.${candidate.id}`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-sm">
-                              {candidate.name} ({candidate.party}) - {candidate.constituency}
+                            <FormLabel className="text-sm flex items-center gap-2">
+                              <span>{candidate.name}</span>
+                              {(() => {
+                                const party = politicalParties?.find((p: any) => p.id === candidate.partyId || p.name === candidate.party);
+                                return party ? (
+                                  <span className="flex items-center gap-1">
+                                    <div 
+                                      className="w-3 h-3 rounded-full" 
+                                      style={{ backgroundColor: party.color || "#6B7280" }}
+                                    />
+                                    <span className="text-xs font-medium">
+                                      {party.abbreviation || party.name}
+                                    </span>
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-gray-500">({candidate.party})</span>
+                                );
+                              })()}
+                              <span className="text-xs text-gray-500">- {candidate.constituency}</span>
                             </FormLabel>
                             <FormControl>
                               <Input type="number" min="0" {...field} data-testid={`input-votes-${candidate.id}`} />
@@ -276,8 +289,25 @@ export default function ResultSubmissionForm() {
                         name={`councilorVotes.${candidate.id}`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-sm">
-                              {candidate.name} ({candidate.party}) - {candidate.constituency}
+                            <FormLabel className="text-sm flex items-center gap-2">
+                              <span>{candidate.name}</span>
+                              {(() => {
+                                const party = politicalParties?.find((p: any) => p.id === candidate.partyId || p.name === candidate.party);
+                                return party ? (
+                                  <span className="flex items-center gap-1">
+                                    <div 
+                                      className="w-3 h-3 rounded-full" 
+                                      style={{ backgroundColor: party.color || "#6B7280" }}
+                                    />
+                                    <span className="text-xs font-medium">
+                                      {party.abbreviation || party.name}
+                                    </span>
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-gray-500">({candidate.party})</span>
+                                );
+                              })()}
+                              <span className="text-xs text-gray-500">- {candidate.constituency}</span>
                             </FormLabel>
                             <FormControl>
                               <Input type="number" min="0" {...field} data-testid={`input-votes-${candidate.id}`} />

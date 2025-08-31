@@ -12,9 +12,22 @@ interface PartyPerformance {
   percentage: number;
   candidates: number;
   category: 'president' | 'mp' | 'councilor';
+  categoryBreakdown?: {
+    president?: number;
+    mp?: number;
+    councilor?: number;
+  };
 }
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316', '#06B6D4', '#84CC16'];
+
+// Category-specific colors
+const CATEGORY_COLORS = {
+  president: '#DC2626',   // Red
+  mp: '#059669',          // Green  
+  councilor: '#7C3AED',   // Purple
+  all: '#3B82F6'          // Blue
+};
 
 export default function PartyPerformanceChart() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -167,9 +180,18 @@ export default function PartyPerformanceChart() {
                 />
                 <Bar 
                   dataKey="totalVotes" 
-                  fill="#3B82F6"
                   radius={[4, 4, 0, 0]}
-                />
+                >
+                  {partyData.map((entry: PartyPerformance, index: number) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={selectedCategory === 'all' 
+                        ? CATEGORY_COLORS[entry.category] 
+                        : CATEGORY_COLORS[selectedCategory as keyof typeof CATEGORY_COLORS] || COLORS[index % COLORS.length]
+                      } 
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -200,16 +222,31 @@ export default function PartyPerformanceChart() {
           <h4 className="font-medium text-gray-900">Party Breakdown</h4>
           <div className="grid gap-2 max-h-40 overflow-y-auto">
             {partyData.map((party: PartyPerformance, index: number) => (
-              <div key={party.party} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+              <div key={`${party.party}-${party.category}`} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div 
                     className="w-4 h-4 rounded-full" 
-                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    style={{ 
+                      backgroundColor: selectedCategory === 'all' 
+                        ? CATEGORY_COLORS[party.category] 
+                        : CATEGORY_COLORS[selectedCategory as keyof typeof CATEGORY_COLORS] || COLORS[index % COLORS.length]
+                    }}
                   />
                   <div>
                     <div className="font-medium">{party.party}</div>
-                    <div className="text-xs text-gray-500">
-                      {party.candidates} candidates • {party.category}
+                    <div className="text-xs text-gray-500 flex items-center gap-2">
+                      <span>{party.candidates} candidates</span>
+                      <span>•</span>
+                      <Badge 
+                        variant="outline" 
+                        className="text-xs"
+                        style={{ 
+                          borderColor: CATEGORY_COLORS[party.category],
+                          color: CATEGORY_COLORS[party.category]
+                        }}
+                      >
+                        {party.category}
+                      </Badge>
                     </div>
                   </div>
                 </div>

@@ -33,6 +33,15 @@ export default function Reports() {
     queryKey: ["/api/party-performance"],
   });
 
+  // Group party performance by category
+  const groupedPartyPerformance = partyPerformance?.reduce((acc: any, party: any) => {
+    if (!acc[party.category]) {
+      acc[party.category] = [];
+    }
+    acc[party.category].push(party);
+    return acc;
+  }, {}) || {};
+
   const { data: auditLogs } = useQuery({
     queryKey: ["/api/audit-logs"],
   });
@@ -391,7 +400,8 @@ export default function Reports() {
                     No party performance data available yet
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
+                    {/* Overall Summary */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <Card>
                         <CardContent className="p-4">
@@ -401,7 +411,7 @@ export default function Reports() {
                       </Card>
                       <Card>
                         <CardContent className="p-4">
-                          <div className="text-sm text-gray-600">Leading Party</div>
+                          <div className="text-sm text-gray-600">Leading Party (Overall)</div>
                           <div className="text-lg font-medium">{partyPerformance[0]?.party || 'N/A'}</div>
                         </CardContent>
                       </Card>
@@ -415,16 +425,40 @@ export default function Reports() {
                       </Card>
                     </div>
                     
-                    <div className="space-y-2">
-                      {partyPerformance.slice(0, 10).map((party: any, index: number) => (
-                        <div key={index} className="flex justify-between items-center p-3 border rounded-lg">
-                          <div>
-                            <div className="font-medium">{party.party}</div>
-                            <div className="text-sm text-gray-600">{party.category} • {party.candidates} candidates</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-bold">{party.totalVotes.toLocaleString()}</div>
-                            <div className="text-sm text-gray-600">{party.percentage.toFixed(1)}%</div>
+                    {/* Category-wise breakdown */}
+                    <div className="space-y-6">
+                      {Object.entries(groupedPartyPerformance).map(([category, parties]: [string, any]) => (
+                        <div key={category} className="border rounded-lg p-4">
+                          <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <span className={`w-3 h-3 rounded-full ${
+                              category === 'president' ? 'bg-red-500' :
+                              category === 'mp' ? 'bg-green-500' : 'bg-purple-500'
+                            }`}></span>
+                            {category === 'president' ? 'Presidential' : 
+                             category === 'mp' ? 'Members of Parliament' : 'Councilors'}
+                            <Badge variant="secondary" className="ml-2">
+                              {parties.length} {parties.length === 1 ? 'party' : 'parties'}
+                            </Badge>
+                          </h4>
+                          
+                          <div className="space-y-2">
+                            {parties.slice(0, 10).map((party: any, index: number) => (
+                              <div key={`${category}-${index}`} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                <div>
+                                  <div className="font-medium">{party.party}</div>
+                                  <div className="text-sm text-gray-600">{party.candidates} candidates</div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-bold">{party.totalVotes.toLocaleString()}</div>
+                                  <div className="text-sm text-gray-600">{party.percentage.toFixed(1)}%</div>
+                                </div>
+                              </div>
+                            ))}
+                            {parties.length > 10 && (
+                              <div className="text-center text-sm text-gray-500 py-2">
+                                Showing top 10 parties. Export for complete data.
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}

@@ -28,7 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Users, Shield } from "lucide-react";
+import { Plus, Users, Shield, Edit, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPoliticalPartySchema } from "@shared/schema";
@@ -44,6 +44,7 @@ const formSchema = insertPoliticalPartySchema.extend({
 
 export function PoliticalPartiesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingParty, setEditingParty] = useState<PoliticalParty | null>(null);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -95,8 +96,127 @@ export function PoliticalPartiesPage() {
     },
   });
 
+  const updatePartyMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: z.infer<typeof formSchema> }) => {
+      const response = await fetch(`/api/political-parties/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update political party");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/political-parties"] });
+      form.reset();
+      setIsDialogOpen(false);
+      setEditingParty(null);
+      toast({
+        title: "Success",
+        description: "Political party updated successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deactivatePartyMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/political-parties/${id}/deactivate`, {
+        method: "PUT",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to deactivate political party");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/political-parties"] });
+      toast({
+        title: "Success",
+        description: "Political party deactivated successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const reactivatePartyMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/political-parties/${id}/reactivate`, {
+        method: "PUT",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to reactivate political party");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/political-parties"] });
+      toast({
+        title: "Success",
+        description: "Political party reactivated successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    createPartyMutation.mutate(values);
+    if (editingParty) {
+      updatePartyMutation.mutate({ id: editingParty.id, data: values });
+    } else {
+      createPartyMutation.mutate(values);
+    }
+  };
+
+  const handleEdit = (party: PoliticalParty) => {
+    setEditingParty(party);
+    form.reset({
+      name: party.name,
+      abbreviation: party.abbreviation || "",
+      color: party.color || "#3B82F6",
+      description: party.description || "",
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDeactivate = (party: PoliticalParty) => {
+    if (confirm(`Are you sure you want to deactivate "${party.name}"? This will prevent it from being used in new submissions.`)) {
+      deactivatePartyMutation.mutate(party.id);
+    }
+  };
+
+  const handleReactivate = (party: PoliticalParty) => {
+    reactivatePartyMutation.mutate(party.id);
   };
 
   if (isLoading) {
@@ -145,9 +265,9 @@ export function PoliticalPartiesPage() {
           </DialogTrigger>
           <DialogContent data-testid="dialog-add-party">
             <DialogHeader>
-              <DialogTitle>Add Political Party</DialogTitle>
+              <DialogTitle>{editingParty ? "Edit Political Party" : "Add Political Party"}</DialogTitle>
               <DialogDescription>
-                Create a new political party for consistent candidate management
+                {editingParty ? "Update the political party information" : "Create a new political party for consistent candidate management"}
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -234,17 +354,24 @@ export function PoliticalPartiesPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setIsDialogOpen(false)}
+                    onClick={() => {
+                      setIsDialogOpen(false);
+                      setEditingParty(null);
+                      form.reset();
+                    }}
                     data-testid="button-cancel-party"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    disabled={createPartyMutation.isPending}
+                    disabled={createPartyMutation.isPending || updatePartyMutation.isPending}
                     data-testid="button-save-party"
                   >
-                    {createPartyMutation.isPending ? "Creating..." : "Create Party"}
+                    {editingParty 
+                      ? (updatePartyMutation.isPending ? "Updating..." : "Update Party")
+                      : (createPartyMutation.isPending ? "Creating..." : "Create Party")
+                    }
                   </Button>
                 </div>
               </form>
@@ -276,19 +403,60 @@ export function PoliticalPartiesPage() {
                   {party.description}
                 </p>
               )}
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Users className="h-4 w-4" />
-                  <span>Active</span>
-                </div>
-                {party.color && (
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
-                    <div
-                      className="w-4 h-4 rounded-full border"
-                      style={{ backgroundColor: party.color }}
-                    />
-                    <span>{party.color}</span>
+                    <Users className="h-4 w-4" />
+                    <span className={party.isActive ? "text-green-600" : "text-red-600"}>
+                      {party.isActive ? "Active" : "Inactive"}
+                    </span>
                   </div>
+                  {party.color && (
+                    <div className="flex items-center gap-1">
+                      <div
+                        className="w-4 h-4 rounded-full border"
+                        style={{ backgroundColor: party.color }}
+                      />
+                      <span>{party.color}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEdit(party)}
+                  data-testid={`button-edit-${party.id}`}
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  Edit
+                </Button>
+                
+                {party.isActive ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeactivate(party)}
+                    disabled={deactivatePartyMutation.isPending}
+                    data-testid={`button-deactivate-${party.id}`}
+                  >
+                    <ToggleLeft className="h-3 w-3 mr-1" />
+                    Disable
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleReactivate(party)}
+                    disabled={reactivatePartyMutation.isPending}
+                    data-testid={`button-reactivate-${party.id}`}
+                  >
+                    <ToggleRight className="h-3 w-3 mr-1" />
+                    Enable
+                  </Button>
                 )}
               </div>
             </CardContent>
