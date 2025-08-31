@@ -32,7 +32,7 @@ export default function Sidebar() {
   const { user } = useAuth();
 
   const filteredNavigation = navigation.filter(item => 
-    item.roles.includes((user?.role as any) || "agent")
+    item.roles.includes((user as any)?.role || "agent")
   );
 
   return (
@@ -43,9 +43,9 @@ export default function Sidebar() {
             const isActive = location === item.href;
             return (
               <Link key={item.name} href={item.href}>
-                <a
+                <div
                   className={cn(
-                    "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer",
                     isActive
                       ? "bg-primary-50 text-primary-700"
                       : "text-gray-700 hover:bg-gray-50"
@@ -59,7 +59,7 @@ export default function Sidebar() {
                     )}
                   />
                   {item.name}
-                </a>
+                </div>
               </Link>
             );
           })}
