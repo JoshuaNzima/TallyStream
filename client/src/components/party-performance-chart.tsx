@@ -175,8 +175,41 @@ export default function PartyPerformanceChart() {
                 />
                 <YAxis />
                 <Tooltip 
-                  formatter={(value: number) => [value.toLocaleString(), 'Votes']}
-                  labelFormatter={(label) => `Party: ${label}`}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      if (selectedCategory === 'all') {
+                        const data = payload[0].payload as PartyPerformance;
+                        return (
+                          <div className="bg-white p-3 border rounded shadow-lg">
+                            <p className="font-medium">{`Party: ${label}`}</p>
+                            <p className="text-blue-600">{`Total Votes: ${data.totalVotes.toLocaleString()}`}</p>
+                            {data.categoryBreakdown && (
+                              <div className="mt-2 space-y-1">
+                                <p className="text-sm font-medium">Category Breakdown:</p>
+                                {data.categoryBreakdown.president && (
+                                  <p className="text-sm text-red-600">Presidential: {data.categoryBreakdown.president.toLocaleString()}</p>
+                                )}
+                                {data.categoryBreakdown.mp && (
+                                  <p className="text-sm text-green-600">MP: {data.categoryBreakdown.mp.toLocaleString()}</p>
+                                )}
+                                {data.categoryBreakdown.councilor && (
+                                  <p className="text-sm text-purple-600">Councilor: {data.categoryBreakdown.councilor.toLocaleString()}</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="bg-white p-3 border rounded shadow-lg">
+                            <p className="font-medium">{`Party: ${label}`}</p>
+                            <p className="text-blue-600">{`Votes: ${payload[0].value?.toLocaleString()}`}</p>
+                          </div>
+                        );
+                      }
+                    }
+                    return null;
+                  }}
                 />
                 <Bar 
                   dataKey="totalVotes" 
@@ -186,12 +219,53 @@ export default function PartyPerformanceChart() {
                     <Cell 
                       key={`cell-${index}`} 
                       fill={selectedCategory === 'all' 
-                        ? CATEGORY_COLORS[entry.category] 
+                        ? `url(#colorGradient${index})` // Use gradient for all categories view
                         : CATEGORY_COLORS[selectedCategory as keyof typeof CATEGORY_COLORS] || COLORS[index % COLORS.length]
                       } 
                     />
                   ))}
                 </Bar>
+                {/* Define gradients for multi-category visualization */}
+                {selectedCategory === 'all' && (
+                  <defs>
+                    {partyData.map((entry: PartyPerformance, index: number) => {
+                      if (!entry.categoryBreakdown) return null;
+                      const breakdown = entry.categoryBreakdown;
+                      const total = entry.totalVotes;
+                      
+                      let currentOffset = 0;
+                      const segments = [];
+                      
+                      if (breakdown.president) {
+                        const percentage = (breakdown.president / total) * 100;
+                        segments.push({ color: CATEGORY_COLORS.president, offset: currentOffset, percentage });
+                        currentOffset += percentage;
+                      }
+                      if (breakdown.mp) {
+                        const percentage = (breakdown.mp / total) * 100;
+                        segments.push({ color: CATEGORY_COLORS.mp, offset: currentOffset, percentage });
+                        currentOffset += percentage;
+                      }
+                      if (breakdown.councilor) {
+                        const percentage = (breakdown.councilor / total) * 100;
+                        segments.push({ color: CATEGORY_COLORS.councilor, offset: currentOffset, percentage });
+                      }
+                      
+                      return (
+                        <linearGradient key={`colorGradient${index}`} id={`colorGradient${index}`} x1="0" y1="0" x2="0" y2="1">
+                          {segments.map((segment, i) => (
+                            <stop 
+                              key={i}
+                              offset={`${segment.offset}%`} 
+                              stopColor={segment.color}
+                              stopOpacity={0.8}
+                            />
+                          ))}
+                        </linearGradient>
+                      );
+                    })}
+                  </defs>
+                )}
               </BarChart>
             </ResponsiveContainer>
           ) : (

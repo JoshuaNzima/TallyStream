@@ -1,0 +1,34 @@
+# Google Cloud App Engine configuration
+runtime: nodejs18
+
+env: standard
+
+instance_class: F2
+
+automatic_scaling:
+  min_instances: 1
+  max_instances: 10
+  target_cpu_utilization: 0.6
+
+env_variables:
+  NODE_ENV: production
+  SESSION_SECRET: your-super-secure-session-secret-change-this
+
+# Configure Cloud SQL connection
+vpc_access_connector:
+  name: projects/YOUR_PROJECT_ID/locations/YOUR_REGION/connectors/YOUR_CONNECTOR
+
+# Health check
+readiness_check:
+  path: "/health"
+  check_interval_sec: 5
+  timeout_sec: 4
+  failure_threshold: 2
+  success_threshold: 2
+
+liveness_check:
+  path: "/health"
+  check_interval_sec: 30
+  timeout_sec: 4
+  failure_threshold: 4
+  success_threshold: 2

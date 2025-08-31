@@ -29,18 +29,42 @@ export default function Reports() {
     queryKey: ["/api/candidates"],
   });
 
-  const { data: partyPerformance } = useQuery({
-    queryKey: ["/api/party-performance"],
+  const { data: users } = useQuery({
+    queryKey: ["/api/users"],
   });
 
-  // Group party performance by category
-  const groupedPartyPerformance = partyPerformance?.reduce((acc: any, party: any) => {
-    if (!acc[party.category]) {
-      acc[party.category] = [];
-    }
-    acc[party.category].push(party);
-    return acc;
-  }, {}) || {};
+  // Fetch party performance data for each category separately
+  const { data: presidentialPerformance } = useQuery({
+    queryKey: ["/api/party-performance", "president"],
+    queryFn: () => 
+      fetch("/api/party-performance?category=president", { credentials: "include" }).then(res => res.json())
+  });
+
+  const { data: mpPerformance } = useQuery({
+    queryKey: ["/api/party-performance", "mp"],
+    queryFn: () => 
+      fetch("/api/party-performance?category=mp", { credentials: "include" }).then(res => res.json())
+  });
+
+  const { data: councilorPerformance } = useQuery({
+    queryKey: ["/api/party-performance", "councilor"],
+    queryFn: () => 
+      fetch("/api/party-performance?category=councilor", { credentials: "include" }).then(res => res.json())
+  });
+
+  // Create grouped party performance for proper category breakdown
+  const groupedPartyPerformance = {
+    president: presidentialPerformance || [],
+    mp: mpPerformance || [],
+    councilor: councilorPerformance || []
+  };
+
+  // Combine all party performance data for overall stats and export
+  const partyPerformance = [
+    ...(presidentialPerformance || []),
+    ...(mpPerformance || []),
+    ...(councilorPerformance || [])
+  ];
 
   const { data: auditLogs } = useQuery({
     queryKey: ["/api/audit-logs"],
@@ -66,6 +90,25 @@ export default function Reports() {
     return filtered;
   };
 
+  const formatVotesForExport = (votes: any, candidatesList: any[]) => {
+    if (!votes || typeof votes !== 'object') return "No votes";
+    
+    const voteEntries = Object.entries(votes);
+    if (voteEntries.length === 0) return "No votes";
+    
+    return voteEntries.map(([candidateId, voteCount]) => {
+      const candidate = candidatesList?.find(c => c.id === candidateId);
+      const candidateName = candidate ? `${candidate.firstName} ${candidate.lastName} (${candidate.party?.name || 'Unknown Party'})` : `Candidate ID: ${candidateId}`;
+      return `${candidateName}: ${voteCount}`;
+    }).join("; ");
+  };
+
+  const getUserName = (userId: string, usersList: any[]) => {
+    if (!userId) return "N/A";
+    const user = usersList?.find(u => u.id === userId);
+    return user ? `${user.firstName} ${user.lastName}` : `User ID: ${userId}`;
+  };
+
   const handleExportCSV = (exportType: string) => {
     const filteredResults = getFilteredResults();
     
@@ -78,14 +121,14 @@ export default function Reports() {
       const rows = filteredResults.map((r: any) => [
         r.pollingCenter?.name || "Unknown",
         r.status,
-        JSON.stringify(r.presidentialVotes || {}),
-        JSON.stringify(r.mpVotes || {}),
-        JSON.stringify(r.councilorVotes || {}),
+        formatVotesForExport(r.presidentialVotes, candidates),
+        formatVotesForExport(r.mpVotes, candidates),
+        formatVotesForExport(r.councilorVotes, candidates),
         r.totalValidVotes || 0,
         r.invalidVotes || 0,
-        r.submittedBy || "Unknown",
+        getUserName(r.submittedBy, users),
         format(new Date(r.createdAt), "yyyy-MM-dd HH:mm:ss"),
-        r.verifiedBy || "N/A",
+        getUserName(r.verifiedBy, users),
         r.verifiedAt ? format(new Date(r.verifiedAt), "yyyy-MM-dd HH:mm:ss") : "N/A"
       ]);
       

@@ -230,6 +230,27 @@ export class DatabaseStorage implements IStorage {
     return deactivatedParty;
   }
 
+  async reactivatePoliticalParty(id: string): Promise<PoliticalParty> {
+    const [reactivatedParty] = await db
+      .update(politicalParties)
+      .set({ isActive: true, updatedAt: new Date() })
+      .where(eq(politicalParties.id, id))
+      .returning();
+    return reactivatedParty;
+  }
+
+  async deletePoliticalParty(id: string): Promise<void> {
+    // First check if the party is used by any candidates
+    const candidatesUsingParty = await db.select().from(candidates).where(eq(candidates.partyId, id));
+    
+    if (candidatesUsingParty.length > 0) {
+      throw new Error("Cannot delete political party as it is being used by existing candidates");
+    }
+
+    // Delete the political party
+    await db.delete(politicalParties).where(eq(politicalParties.id, id));
+  }
+
   // Candidate operations
   async getCandidates(): Promise<Candidate[]> {
     return await db.select().from(candidates).where(eq(candidates.isActive, true));
@@ -527,6 +548,11 @@ export class DatabaseStorage implements IStorage {
     percentage: number;
     candidates: number;
     category: CandidateCategory;
+    categoryBreakdown?: {
+      president?: number;
+      mp?: number;
+      councilor?: number;
+    };
   }>> {
     try {
       // Get all verified results
@@ -538,71 +564,132 @@ export class DatabaseStorage implements IStorage {
       // Get all candidates to match parties with categories
       const allCandidates = await db.select().from(candidates);
       
-      // Initialize party performance map
-      const partyPerformance = new Map<string, {
-        party: string;
-        totalVotes: number;
-        candidates: number;
-        category: CandidateCategory;
-      }>();
+      if (category) {
+        // Category-specific data (existing logic)
+        const partyPerformance = new Map<string, {
+          party: string;
+          totalVotes: number;
+          candidates: number;
+          category: CandidateCategory;
+        }>();
 
-      // Process each verified result
-      for (const result of verifiedResults) {
-        const resultData = result;
-        
-        // Process each category's votes
-        const categories: { votes: any; category: CandidateCategory }[] = [
-          { votes: resultData.presidentialVotes, category: 'president' },
-          { votes: resultData.mpVotes, category: 'mp' },
-          { votes: resultData.councilorVotes, category: 'councilor' }
-        ];
-
-        for (const { votes, category: resultCategory } of categories) {
-          // Skip if filtering by category and this doesn't match
-          if (category && category !== resultCategory) continue;
+        // Process each verified result
+        for (const result of verifiedResults) {
+          const resultData = result;
           
-          if (votes && typeof votes === 'object') {
-            // votes is a JSON object: { candidateId: voteCount, ... }
-            for (const [candidateId, voteCount] of Object.entries(votes)) {
-              const candidate = allCandidates.find(c => c.id === candidateId);
-              if (candidate && candidate.category === resultCategory) {
-                const key = `${candidate.party}-${resultCategory}`;
-                
-                if (!partyPerformance.has(key)) {
-                  partyPerformance.set(key, {
-                    party: candidate.party,
-                    totalVotes: 0,
-                    candidates: 0,
-                    category: resultCategory
-                  });
+          // Process each category's votes
+          const categories: { votes: any; category: CandidateCategory }[] = [
+            { votes: resultData.presidentialVotes, category: 'president' },
+            { votes: resultData.mpVotes, category: 'mp' },
+            { votes: resultData.councilorVotes, category: 'councilor' }
+          ];
+
+          for (const { votes, category: resultCategory } of categories) {
+            if (category !== resultCategory) continue;
+            
+            if (votes && typeof votes === 'object') {
+              for (const [candidateId, voteCount] of Object.entries(votes)) {
+                const candidate = allCandidates.find(c => c.id === candidateId);
+                if (candidate && candidate.category === resultCategory) {
+                  const key = `${candidate.party}-${resultCategory}`;
+                  
+                  if (!partyPerformance.has(key)) {
+                    partyPerformance.set(key, {
+                      party: candidate.party,
+                      totalVotes: 0,
+                      candidates: 0,
+                      category: resultCategory
+                    });
+                  }
+                  
+                  const partyData = partyPerformance.get(key)!;
+                  partyData.totalVotes += Number(voteCount) || 0;
                 }
-                
-                const partyData = partyPerformance.get(key)!;
-                partyData.totalVotes += Number(voteCount) || 0;
               }
             }
           }
         }
-      }
 
-      // Count candidates per party-category combination
-      for (const candidate of allCandidates) {
-        if (category && candidate.category !== category) continue;
-        
-        const key = `${candidate.party}-${candidate.category}`;
-        if (partyPerformance.has(key)) {
-          partyPerformance.get(key)!.candidates++;
+        // Count candidates per party-category combination
+        for (const candidate of allCandidates) {
+          if (candidate.category !== category) continue;
+          
+          const key = `${candidate.party}-${candidate.category}`;
+          if (partyPerformance.has(key)) {
+            partyPerformance.get(key)!.candidates++;
+          }
         }
+
+        // Convert to array and calculate percentages
+        const performanceArray = Array.from(partyPerformance.values());
+        const totalVotes = performanceArray.reduce((sum, party) => sum + party.totalVotes, 0);
+
+        return performanceArray.map(party => ({
+          ...party,
+          percentage: totalVotes > 0 ? (party.totalVotes / totalVotes) * 100 : 0
+        })).sort((a, b) => b.totalVotes - a.totalVotes);
+      } else {
+        // All categories - aggregate by party
+        const partyTotals = new Map<string, {
+          party: string;
+          totalVotes: number;
+          candidates: number;
+          categoryBreakdown: { president: number; mp: number; councilor: number };
+        }>();
+
+        // Process each verified result
+        for (const result of verifiedResults) {
+          const resultData = result;
+          
+          // Process each category's votes
+          const categories: { votes: any; category: CandidateCategory }[] = [
+            { votes: resultData.presidentialVotes, category: 'president' },
+            { votes: resultData.mpVotes, category: 'mp' },
+            { votes: resultData.councilorVotes, category: 'councilor' }
+          ];
+
+          for (const { votes, category: resultCategory } of categories) {
+            if (votes && typeof votes === 'object') {
+              for (const [candidateId, voteCount] of Object.entries(votes)) {
+                const candidate = allCandidates.find(c => c.id === candidateId);
+                if (candidate && candidate.category === resultCategory) {
+                  if (!partyTotals.has(candidate.party)) {
+                    partyTotals.set(candidate.party, {
+                      party: candidate.party,
+                      totalVotes: 0,
+                      candidates: 0,
+                      categoryBreakdown: { president: 0, mp: 0, councilor: 0 }
+                    });
+                  }
+                  
+                  const partyData = partyTotals.get(candidate.party)!;
+                  const votes = Number(voteCount) || 0;
+                  partyData.totalVotes += votes;
+                  partyData.categoryBreakdown[resultCategory] += votes;
+                }
+              }
+            }
+          }
+        }
+
+        // Count candidates per party across all categories
+        for (const candidate of allCandidates) {
+          if (partyTotals.has(candidate.party)) {
+            partyTotals.get(candidate.party)!.candidates++;
+          }
+        }
+
+        // Convert to array and calculate percentages
+        const performanceArray = Array.from(partyTotals.values());
+        const totalVotes = performanceArray.reduce((sum, party) => sum + party.totalVotes, 0);
+
+        return performanceArray.map(party => ({
+          ...party,
+          category: 'all' as CandidateCategory,
+          categoryBreakdown: party.categoryBreakdown,
+          percentage: totalVotes > 0 ? (party.totalVotes / totalVotes) * 100 : 0
+        })).sort((a, b) => b.totalVotes - a.totalVotes);
       }
-
-      // Convert to array and calculate percentages
-      const performanceArray = Array.from(partyPerformance.values());
-      const totalVotes = performanceArray.reduce((sum, party) => sum + party.totalVotes, 0);
-
-      return performanceArray.map(party => ({
-        ...party,
-        percentage: totalVotes > 0 ? (party.totalVotes / totalVotes) * 100 : 0
-      })).sort((a, b) => b.totalVotes - a.totalVotes);
       
     } catch (error) {
       console.error('Error calculating party performance:', error);

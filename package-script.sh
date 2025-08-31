@@ -30,6 +30,12 @@ cp postcss.config.js "$PACKAGE_DIR/"
 echo "🔧 Copying installer files..."
 cp -r installer/ "$PACKAGE_DIR/"
 
+# Copy deployment configurations
+echo "☁️ Copying deployment configurations..."
+cp -r deployment/ "$PACKAGE_DIR/"
+cp Dockerfile "$PACKAGE_DIR/" 2>/dev/null || echo "Dockerfile not found, skipping..."
+cp docker-compose.yml "$PACKAGE_DIR/" 2>/dev/null || echo "docker-compose.yml not found, skipping..."
+
 # Create environment template
 echo "⚙️ Creating environment template..."
 cat > "$PACKAGE_DIR/.env.example" << 'EOF'

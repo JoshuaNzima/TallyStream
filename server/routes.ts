@@ -457,7 +457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentParties = await storage.getPoliticalParties();
       const currentParty = currentParties.find(p => p.id === id);
       
-      const reactivatedParty = await storage.updatePoliticalParty(id, { isActive: true });
+      const reactivatedParty = await storage.reactivatePoliticalParty(id);
       
       // Log the action
       await storage.createAuditLog({
@@ -475,6 +475,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error reactivating political party:", error);
       res.status(400).json({ message: "Failed to reactivate political party" });
+    }
+  });
+
+  app.delete("/api/political-parties/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied. Admin role required." });
+      }
+
+      const { id } = req.params;
+      
+      // Get current party for audit log
+      const currentParties = await storage.getPoliticalParties();
+      const currentParty = currentParties.find(p => p.id === id);
+      
+      if (!currentParty) {
+        return res.status(404).json({ message: "Political party not found" });
+      }
+      
+      await storage.deletePoliticalParty(id);
+      
+      // Log the action
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'DELETE',
+        entityType: 'political_party',
+        entityId: id,
+        oldValues: JSON.stringify(currentParty),
+        newValues: null,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting political party:", error);
+      const message = error instanceof Error ? error.message : "Failed to delete political party";
+      res.status(400).json({ message });
     }
   });
 
@@ -533,6 +572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         councilorVotes: req.body.councilorVotes ? JSON.parse(req.body.councilorVotes) : null,
         invalidVotes: parseInt(req.body.invalidVotes),
         submittedBy: req.user.id,
+        submissionChannel: 'portal', // Default to portal since it's coming from the web interface
       });
 
       const result = await storage.createResult(validatedData);

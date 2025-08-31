@@ -75,7 +75,8 @@ export default function AuditTrail() {
                       </div>
                       
                       <div className="text-sm text-gray-600 mb-2" data-testid={`text-user-${log.id}`}>
-                        User ID: {log.userId}
+                        By: {log.userName || 'Unknown User'}
+                        {log.userEmail && <span className="text-gray-500 ml-2">({log.userEmail})</span>}
                       </div>
                       
                       {log.newValues && (

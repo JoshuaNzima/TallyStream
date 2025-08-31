@@ -1,0 +1,19 @@
+# Google Cloud Build configuration
+steps:
+  # Install dependencies
+  - name: 'node:18'
+    entrypoint: npm
+    args: ['ci']
+
+  # Build the application
+  - name: 'node:18'
+    entrypoint: npm
+    args: ['run', 'build']
+
+  # Deploy to App Engine
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: ['app', 'deploy', '--quiet']
+
+# Optionally store artifacts
+options:
+  logging: CLOUD_LOGGING_ONLY

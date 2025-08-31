@@ -138,16 +138,20 @@ export default function ResultSubmissionForm() {
       <CardContent className="p-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 gap-6">
+            <div className="border rounded-lg p-6 bg-gradient-to-r from-green-50 to-emerald-50 mb-6">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">1</span>
+                Polling Center Selection
+              </h4>
               <FormField
                 control={form.control}
                 name="pollingCenterId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Polling Center</FormLabel>
+                    <FormLabel className="text-base font-medium">Polling Center</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger data-testid="select-polling-center">
+                        <SelectTrigger className="h-12" data-testid="select-polling-center">
                           <SelectValue placeholder="Select polling center" />
                         </SelectTrigger>
                       </FormControl>
@@ -163,20 +167,22 @@ export default function ResultSubmissionForm() {
                   </FormItem>
                 )}
               />
-              
             </div>
 
-            <div className="border rounded-lg p-4">
-              <h4 className="text-md font-medium text-gray-900 mb-4">Candidate Results</h4>
+            <div className="border rounded-lg p-6 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <h4 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+                <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">2</span>
+                Election Results Entry
+              </h4>
               <FormField
                 control={form.control}
                 name="category"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Election Category</FormLabel>
+                  <FormItem className="mb-6">
+                    <FormLabel className="text-base font-medium">Election Category</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value} data-testid="select-category">
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="h-12">
                           <SelectValue placeholder="Select election category" />
                         </SelectTrigger>
                       </FormControl>
@@ -192,8 +198,8 @@ export default function ResultSubmissionForm() {
               />
 
               {/* Candidate Votes Section */}
-              <div className="space-y-4">
-                <h4 className="font-medium">Candidate Votes</h4>
+              <div className="space-y-6">
+                <h5 className="text-base font-medium text-gray-800">Candidate Votes</h5>
                 
                 {/* Presidential Candidates */}
                 {form.watch("category") === "president" && (
@@ -321,15 +327,15 @@ export default function ResultSubmissionForm() {
                 )}
               </div>
               
-              <div className="mt-4">
+              <div className="mt-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
                 <FormField
                   control={form.control}
                   name="invalidVotes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Invalid Votes</FormLabel>
+                      <FormLabel className="text-base font-medium text-orange-800">Invalid Votes</FormLabel>
                       <FormControl>
-                        <Input type="number" min="0" className="w-full md:w-1/3" {...field} data-testid="input-invalid-votes" />
+                        <Input type="number" min="0" className="w-full md:w-1/3 h-12 border-orange-300 focus:border-orange-500" {...field} data-testid="input-invalid-votes" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -338,25 +344,38 @@ export default function ResultSubmissionForm() {
               </div>
             </div>
 
-            <FileUpload files={files} onFilesChange={setFiles} />
+            <div className="border rounded-lg p-6 bg-gradient-to-r from-purple-50 to-pink-50">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="bg-purple-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">3</span>
+                Documentation & Verification
+              </h4>
+              <FileUpload files={files} onFilesChange={setFiles} />
+            </div>
 
-            <FormField
-              control={form.control}
-              name="comments"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Additional Comments</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Any observations or issues during the voting process..."
-                      {...field}
-                      data-testid="textarea-comments"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="border rounded-lg p-6 bg-gradient-to-r from-gray-50 to-slate-50">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="bg-gray-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">4</span>
+                Additional Information
+              </h4>
+              <FormField
+                control={form.control}
+                name="comments"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base font-medium">Additional Comments</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Any observations or issues during the voting process..."
+                        className="min-h-[100px]"
+                        {...field}
+                        data-testid="textarea-comments"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="flex items-center space-x-4">
               <Button 

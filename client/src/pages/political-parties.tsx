@@ -190,6 +190,35 @@ export function PoliticalPartiesPage() {
     },
   });
 
+  const deletePartyMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/political-parties/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete political party");
+      }
+
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/political-parties"] });
+      toast({
+        title: "Success",
+        description: "Political party deleted successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (editingParty) {
       updatePartyMutation.mutate({ id: editingParty.id, data: values });
@@ -217,6 +246,12 @@ export function PoliticalPartiesPage() {
 
   const handleReactivate = (party: PoliticalParty) => {
     reactivatePartyMutation.mutate(party.id);
+  };
+
+  const handleDelete = (party: PoliticalParty) => {
+    if (confirm(`Are you sure you want to permanently delete "${party.name}"? This action cannot be undone and will only work if no candidates are using this party.`)) {
+      deletePartyMutation.mutate(party.id);
+    }
   };
 
   if (isLoading) {
@@ -424,7 +459,7 @@ export function PoliticalPartiesPage() {
               </div>
               
               {/* Action Buttons */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
@@ -458,6 +493,18 @@ export function PoliticalPartiesPage() {
                     Enable
                   </Button>
                 )}
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDelete(party)}
+                  disabled={deletePartyMutation.isPending}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                  data-testid={`button-delete-${party.id}`}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Delete
+                </Button>
               </div>
             </CardContent>
           </Card>
