@@ -6,6 +6,8 @@ import {
   resultFiles,
   auditLogs,
   politicalParties,
+  ussdSessions,
+  ussdProviders,
   type User,
   type UpsertUser,
   type PollingCenter,
@@ -21,6 +23,8 @@ import {
   type InsertResultFile,
   type AuditLog,
   type InsertAuditLog,
+  type UssdSession,
+  type UssdProvider,
   type UserRole,
   type ResultStatus,
   type CandidateCategory,
@@ -39,7 +43,7 @@ export interface IStorage {
   updateLastLogin(userId: string): Promise<void>;
   
   // Polling center operations
-  getPollingCenters(): Promise<PollingCenter[]>;
+  getPollingCenters(page?: number, limit?: number): Promise<{ data: PollingCenter[]; total: number; }>;
   getPollingCenter(id: string): Promise<PollingCenter | undefined>;
   createPollingCenter(center: InsertPollingCenter): Promise<PollingCenter>;
   
@@ -50,8 +54,24 @@ export interface IStorage {
   deactivatePoliticalParty(id: string): Promise<PoliticalParty>;
   
   // Candidate operations
-  getCandidates(): Promise<Candidate[]>;
+  getCandidates(page?: number, limit?: number): Promise<{ data: Candidate[]; total: number; }>;
   createCandidate(candidate: InsertCandidate): Promise<Candidate>;
+  
+  // Session management
+  updateUserSession(userId: string, sessionId: string, expiryTime: Date): Promise<User>;
+  clearUserSession(userId: string): Promise<User>;
+  getUserBySession(sessionId: string): Promise<User | undefined>;
+  
+  // USSD operations
+  createUssdSession(phoneNumber: string, sessionId: string, currentStep: string): Promise<UssdSession>;
+  getUssdSession(sessionId: string): Promise<UssdSession | undefined>;
+  updateUssdSession(sessionId: string, currentStep: string, sessionData: any): Promise<UssdSession>;
+  expireUssdSession(sessionId: string): Promise<void>;
+  
+  // USSD Provider management
+  getUssdProviders(): Promise<UssdProvider[]>;
+  createUssdProvider(provider: { name: string; type: string; configuration: any }): Promise<UssdProvider>;
+  updateUssdProvider(id: string, configuration: any): Promise<UssdProvider>;
   
   // Result operations
   getResults(): Promise<ResultWithRelations[]>;
@@ -184,8 +204,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Polling center operations
-  async getPollingCenters(): Promise<PollingCenter[]> {
-    return await db.select().from(pollingCenters).where(eq(pollingCenters.isActive, true));
+  async getPollingCenters(page?: number, limit?: number): Promise<{ data: PollingCenter[]; total: number; }> {
+    // Get total count
+    const totalResult = await db.select({ count: count() }).from(pollingCenters);
+    const total = totalResult[0].count;
+
+    // Apply pagination if specified
+    let query = db.select().from(pollingCenters).orderBy(desc(pollingCenters.createdAt));
+    
+    if (page !== undefined && limit !== undefined) {
+      const offset = (page - 1) * limit;
+      query = query.limit(limit).offset(offset) as any;
+    }
+
+    const data = await query;
+    return { data, total };
   }
 
   async getPollingCenter(id: string): Promise<PollingCenter | undefined> {
@@ -270,8 +303,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Candidate operations
-  async getCandidates(): Promise<Candidate[]> {
-    return await db.select().from(candidates).where(eq(candidates.isActive, true));
+  async getCandidates(page?: number, limit?: number): Promise<{ data: Candidate[]; total: number; }> {
+    // Get total count
+    const totalResult = await db.select({ count: count() }).from(candidates);
+    const total = totalResult[0].count;
+
+    // Apply pagination if specified
+    let query = db.select().from(candidates).orderBy(desc(candidates.createdAt));
+    
+    if (page !== undefined && limit !== undefined) {
+      const offset = (page - 1) * limit;
+      query = query.limit(limit).offset(offset) as any;
+    }
+
+    const data = await query;
+    return { data, total };
   }
 
   async createCandidate(candidate: InsertCandidate): Promise<Candidate> {
@@ -842,6 +888,122 @@ export class DatabaseStorage implements IStorage {
       pollingCentersDeleted,
       resultsDeleted,
     };
+  }
+
+  // Session management functions
+  async updateUserSession(userId: string, sessionId: string, expiryTime: Date): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        currentSessionId: sessionId, 
+        sessionExpiry: expiryTime,
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async clearUserSession(userId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        currentSessionId: null, 
+        sessionExpiry: null,
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async getUserBySession(sessionId: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(and(
+        eq(users.currentSessionId, sessionId),
+        sql`${users.sessionExpiry} > NOW()`
+      ));
+    return user;
+  }
+
+  // USSD Session management
+  async createUssdSession(phoneNumber: string, sessionId: string, currentStep: string): Promise<UssdSession> {
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minute expiry
+
+    const [session] = await db
+      .insert(ussdSessions)
+      .values({
+        phoneNumber,
+        sessionId,
+        currentStep,
+        expiresAt,
+        sessionData: {},
+      })
+      .returning();
+    return session;
+  }
+
+  async getUssdSession(sessionId: string): Promise<UssdSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(ussdSessions)
+      .where(and(
+        eq(ussdSessions.sessionId, sessionId),
+        eq(ussdSessions.isActive, true),
+        sql`${ussdSessions.expiresAt} > NOW()`
+      ));
+    return session;
+  }
+
+  async updateUssdSession(sessionId: string, currentStep: string, sessionData: any): Promise<UssdSession> {
+    const [session] = await db
+      .update(ussdSessions)
+      .set({ 
+        currentStep, 
+        sessionData,
+        updatedAt: new Date() 
+      })
+      .where(eq(ussdSessions.sessionId, sessionId))
+      .returning();
+    return session;
+  }
+
+  async expireUssdSession(sessionId: string): Promise<void> {
+    await db
+      .update(ussdSessions)
+      .set({ 
+        isActive: false,
+        updatedAt: new Date() 
+      })
+      .where(eq(ussdSessions.sessionId, sessionId));
+  }
+
+  // USSD Provider management
+  async getUssdProviders(): Promise<UssdProvider[]> {
+    return await db.select().from(ussdProviders).where(eq(ussdProviders.isActive, true));
+  }
+
+  async createUssdProvider(provider: { name: string; type: string; configuration: any }): Promise<UssdProvider> {
+    const [newProvider] = await db
+      .insert(ussdProviders)
+      .values(provider)
+      .returning();
+    return newProvider;
+  }
+
+  async updateUssdProvider(id: string, configuration: any): Promise<UssdProvider> {
+    const [provider] = await db
+      .update(ussdProviders)
+      .set({ 
+        configuration,
+        updatedAt: new Date() 
+      })
+      .where(eq(ussdProviders.id, id))
+      .returning();
+    return provider;
   }
 }
 

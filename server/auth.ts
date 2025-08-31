@@ -73,7 +73,7 @@ export async function setupAuth(app: Express) {
           return done(null, false, { message: 'Account pending approval' });
         }
 
-        // Update last login
+        // Update last login and establish session
         await storage.updateLastLogin(user.id);
 
         return done(null, user);
@@ -97,8 +97,25 @@ export async function setupAuth(app: Express) {
   });
 }
 
-export const isAuthenticated: RequestHandler = (req, res, next) => {
+export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
   if (req.isAuthenticated()) {
+    const user = req.user;
+    const currentSessionId = req.sessionID;
+    
+    // Check for single session enforcement
+    if (user.currentSessionId && user.currentSessionId !== currentSessionId) {
+      // Check if the existing session is still valid
+      const existingUser = await storage.getUserBySession(user.currentSessionId);
+      if (existingUser) {
+        // Another session exists, clear this one and require re-login
+        await storage.clearUserSession(user.id);
+        return res.status(401).json({ 
+          message: "Your session was terminated due to a login from another device.",
+          code: "SESSION_CONFLICT"
+        });
+      }
+    }
+    
     return next();
   }
   res.status(401).json({ message: "Unauthorized" });

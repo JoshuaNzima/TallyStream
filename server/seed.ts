@@ -196,6 +196,41 @@ export async function seedDatabase() {
       console.log("✓ Polling centers already exist");
     }
 
+    // Check if USSD providers already exist
+    const existingProviders = await storage.getUssdProviders();
+    
+    if (existingProviders.length === 0) {
+      // Create Twilio USSD provider
+      await storage.createUssdProvider({
+        name: "Twilio",
+        type: "twilio",
+        configuration: {
+          webhookUrl: "/api/ussd/twilio",
+          description: "Twilio USSD service for global reach",
+          supportedCountries: ["US", "UK", "MW", "KE", "TZ"],
+          responseFormat: "plain_text",
+          sessionTimeout: 600
+        }
+      });
+
+      // Create Africa's Talking USSD provider
+      await storage.createUssdProvider({
+        name: "Africa's Talking",
+        type: "africas_talking",
+        configuration: {
+          webhookUrl: "/api/ussd/africas-talking",
+          description: "Africa's Talking USSD service for African markets",
+          supportedCountries: ["KE", "TZ", "UG", "MW", "RW", "BF"],
+          responseFormat: "CON/END",
+          sessionTimeout: 180
+        }
+      });
+
+      console.log("✓ Created USSD providers");
+    } else {
+      console.log("✓ USSD providers already exist");
+    }
+
     console.log("🎉 Database seeding completed successfully!");
     
     return {

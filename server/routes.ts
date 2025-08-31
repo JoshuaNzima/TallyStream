@@ -412,11 +412,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Polling centers
+  // Polling centers with pagination
   app.get("/api/polling-centers", isAuthenticated, async (req, res) => {
     try {
-      const centers = await storage.getPollingCenters();
-      res.json(centers);
+      const page = parseInt(req.query.page as string) || undefined;
+      const limit = parseInt(req.query.limit as string) || undefined;
+      
+      const result = await storage.getPollingCenters(page, limit);
+      
+      if (page && limit) {
+        res.json({
+          data: result.data,
+          pagination: {
+            page,
+            limit,
+            total: result.total,
+            pages: Math.ceil(result.total / limit)
+          }
+        });
+      } else {
+        res.json(result.data);
+      }
     } catch (error) {
       console.error("Error fetching polling centers:", error);
       res.status(500).json({ message: "Failed to fetch polling centers" });
@@ -666,8 +682,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/candidates", isAuthenticated, async (req, res) => {
     try {
-      const candidates = await storage.getCandidates();
-      res.json(candidates);
+      const page = parseInt(req.query.page as string) || undefined;
+      const limit = parseInt(req.query.limit as string) || undefined;
+      
+      const result = await storage.getCandidates(page, limit);
+      
+      if (page && limit) {
+        res.json({
+          data: result.data,
+          pagination: {
+            page,
+            limit,
+            total: result.total,
+            pages: Math.ceil(result.total / limit)
+          }
+        });
+      } else {
+        res.json(result.data);
+      }
     } catch (error) {
       console.error("Error fetching candidates:", error);
       res.status(500).json({ message: "Failed to fetch candidates" });
@@ -1353,6 +1385,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error processing WhatsApp webhook:", error);
       res.status(500).json({ message: "Failed to process webhook" });
+    }
+  });
+
+  // Session management - enforce single session per user
+  app.post("/api/auth/session/validate", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const currentSessionId = req.sessionID;
+      
+      // Check if user has a different active session
+      if (user.currentSessionId && user.currentSessionId !== currentSessionId) {
+        // Check if the existing session is still valid
+        const existingUser = await storage.getUserBySession(user.currentSessionId);
+        if (existingUser) {
+          // Another session exists, terminate this one
+          await storage.clearUserSession(user.id);
+          return res.status(409).json({ 
+            message: "Another session is active. Please login again.",
+            code: "MULTIPLE_SESSIONS"
+          });
+        }
+      }
+      
+      // Update current session
+      const sessionExpiry = new Date();
+      sessionExpiry.setHours(sessionExpiry.getHours() + 24); // 24 hour session
+      await storage.updateUserSession(user.id, currentSessionId, sessionExpiry);
+      
+      res.json({ message: "Session validated" });
+    } catch (error) {
+      console.error("Error validating session:", error);
+      res.status(500).json({ message: "Session validation failed" });
+    }
+  });
+
+  // USSD webhook endpoint for Twilio
+  app.post("/api/ussd/twilio", async (req, res) => {
+    try {
+      const { From: phoneNumber, Body: text, SessionId: sessionId } = req.body;
+      
+      // Get or create USSD session
+      let session = await storage.getUssdSession(sessionId);
+      if (!session) {
+        session = await storage.createUssdSession(phoneNumber, sessionId, "main_menu");
+      }
+      
+      let response = "";
+      
+      switch (session.currentStep) {
+        case "main_menu":
+          response = `Welcome to PTC Election System\n1. Register as Agent\n2. Submit Results\n3. Check Status\n0. Exit`;
+          await storage.updateUssdSession(sessionId, "main_menu", {});
+          break;
+          
+        case "register":
+          if (text === "1") {
+            response = `Enter your first name:`;
+            await storage.updateUssdSession(sessionId, "register_firstname", {});
+          } else if (text === "2") {
+            response = `Enter polling center code:`;
+            await storage.updateUssdSession(sessionId, "submit_results_center", {});
+          } else if (text === "3") {
+            response = `Enter polling center code to check status:`;
+            await storage.updateUssdSession(sessionId, "check_status", {});
+          } else if (text === "0") {
+            response = `Thank you for using PTC System`;
+            await storage.expireUssdSession(sessionId);
+          } else {
+            response = `Invalid option. Please try again.\n1. Register as Agent\n2. Submit Results\n3. Check Status\n0. Exit`;
+          }
+          break;
+          
+        case "register_firstname":
+          const sessionData = { firstName: text };
+          response = `Enter your last name:`;
+          await storage.updateUssdSession(sessionId, "register_lastname", sessionData);
+          break;
+          
+        case "register_lastname":
+          const currentData = session.sessionData as any;
+          response = `Registration submitted for approval.\nName: ${currentData.firstName} ${text}\nPhone: ${phoneNumber}\nYou will be notified when approved.`;
+          
+          // Create pending user for admin approval
+          const hashedPassword = await hashPassword("temp123"); // Temporary password
+          await storage.createUser({
+            phone: phoneNumber,
+            firstName: currentData.firstName,
+            lastName: text,
+            passwordHash: hashedPassword,
+          });
+          
+          await storage.expireUssdSession(sessionId);
+          break;
+          
+        default:
+          response = `Welcome to PTC Election System\n1. Register as Agent\n2. Submit Results\n3. Check Status\n0. Exit`;
+          await storage.updateUssdSession(sessionId, "main_menu", {});
+      }
+      
+      res.type('text/plain').send(response);
+    } catch (error) {
+      console.error("Error processing USSD request:", error);
+      res.type('text/plain').send("Service temporarily unavailable. Please try again later.");
+    }
+  });
+  
+  // Africa's Talking USSD webhook
+  app.post("/api/ussd/africas-talking", async (req, res) => {
+    try {
+      const { phoneNumber, text, sessionId } = req.body;
+      
+      // Similar logic to Twilio but adapted for Africa's Talking format
+      let session = await storage.getUssdSession(sessionId);
+      if (!session) {
+        session = await storage.createUssdSession(phoneNumber, sessionId, "main_menu");
+      }
+      
+      let response = "";
+      let continueSession = true;
+      
+      switch (session.currentStep) {
+        case "main_menu":
+          response = `Welcome to PTC Election System\n1. Register as Agent\n2. Submit Results\n3. Check Status\n0. Exit`;
+          break;
+          
+        default:
+          response = `Welcome to PTC Election System\n1. Register as Agent\n2. Submit Results\n3. Check Status\n0. Exit`;
+          await storage.updateUssdSession(sessionId, "main_menu", {});
+      }
+      
+      // Africa's Talking expects CON for continue, END for terminate
+      const prefix = continueSession ? "CON" : "END";
+      res.type('text/plain').send(`${prefix} ${response}`);
+    } catch (error) {
+      console.error("Error processing Africa's Talking USSD:", error);
+      res.type('text/plain').send("END Service temporarily unavailable. Please try again later.");
     }
   });
 

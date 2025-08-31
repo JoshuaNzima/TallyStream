@@ -57,6 +57,9 @@ export const users = pgTable("users", {
   phoneVerificationToken: varchar("phone_verification_token"),
   emailVerificationExpiry: timestamp("email_verification_expiry"),
   phoneVerificationExpiry: timestamp("phone_verification_expiry"),
+  registrationChannel: submissionChannelEnum("registration_channel").default('portal'),
+  currentSessionId: varchar("current_session_id"),
+  sessionExpiry: timestamp("session_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -270,6 +273,30 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   createdAt: true,
 });
 
+// USSD Sessions table for tracking multi-step interactions
+export const ussdSessions = pgTable("ussd_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  phoneNumber: varchar("phone_number").notNull(),
+  sessionId: varchar("session_id").unique().notNull(),
+  currentStep: varchar("current_step").notNull(),
+  sessionData: jsonb("session_data").default('{}'),
+  expiresAt: timestamp("expires_at").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// USSD Provider configurations
+export const ussdProviders = pgTable("ussd_providers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").unique().notNull(),
+  type: varchar("type").notNull(), // 'twilio', 'africas_talking', 'custom'
+  isActive: boolean("is_active").default(true).notNull(),
+  configuration: jsonb("configuration").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
@@ -286,6 +313,8 @@ export type ResultFile = typeof resultFiles.$inferSelect;
 export type InsertResultFile = z.infer<typeof insertResultFileSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type UssdSession = typeof ussdSessions.$inferSelect;
+export type UssdProvider = typeof ussdProviders.$inferSelect;
 
 // Extended types with relations
 export type ResultWithRelations = Result & {
