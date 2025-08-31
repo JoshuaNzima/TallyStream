@@ -53,10 +53,6 @@ export default function AdminManagement() {
     }
   });
 
-  // Fetch pending users
-  const { data: pendingUsers } = useQuery({
-    queryKey: ["/api/admin/pending-users"],
-  });
 
   // Fetch candidates
   const { data: candidates } = useQuery({
@@ -72,27 +68,6 @@ export default function AdminManagement() {
     queryKey: ["/api/polling-centers"],
   });
 
-  // Approve user mutation
-  const approveUserMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const res = await apiRequest("POST", `/api/admin/approve-user/${userId}`);
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "User approved successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/pending-users"] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to approve user",
-        variant: "destructive",
-      });
-    },
-  });
 
   // Toggle candidate active status
   const toggleCandidateMutation = useMutation({
@@ -255,9 +230,6 @@ export default function AdminManagement() {
     },
   });
 
-  const handleApproveUser = (userId: string) => {
-    approveUserMutation.mutate(userId);
-  };
 
   const handleAddCandidate = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -330,41 +302,22 @@ export default function AdminManagement() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <UserCheck className="w-5 h-5" />
-                Pending User Approvals
+                <Users className="w-5 h-5" />
+                User Management Tools
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {!pendingUsers || pendingUsers.length === 0 ? (
-                <p className="text-gray-500" data-testid="text-no-pending-users">
-                  No pending user approvals
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {pendingUsers && Array.isArray(pendingUsers) && pendingUsers.map((user: any) => (
-                    <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium" data-testid={`text-user-name-${user.id}`}>
-                          {user.firstName} {user.lastName}
-                        </p>
-                        <p className="text-sm text-gray-600" data-testid={`text-user-contact-${user.id}`}>
-                          {user.email || user.phone}
-                        </p>
-                        <Badge variant="outline" className="mt-1">
-                          {user.role}
-                        </Badge>
-                      </div>
-                      <Button
-                        onClick={() => handleApproveUser(user.id)}
-                        disabled={approveUserMutation.isPending}
-                        data-testid={`button-approve-${user.id}`}
-                      >
-                        {approveUserMutation.isPending ? "Approving..." : "Approve"}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <p className="text-gray-600 mb-4">
+                User approval and management has been moved to the User Management page for better organization.
+              </p>
+              <Button
+                onClick={() => window.location.href = '/user-management'}
+                className="w-full"
+                data-testid="button-goto-user-management"
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Go to User Management
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

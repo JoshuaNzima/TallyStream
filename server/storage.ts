@@ -75,10 +75,15 @@ export interface IStorage {
   
   // Result operations
   getResults(): Promise<ResultWithRelations[]>;
+  getResult(id: string): Promise<Result | undefined>;
   getResultsByStatus(status: ResultStatus): Promise<ResultWithRelations[]>;
   getResultsByPollingCenter(pollingCenterId: string): Promise<ResultWithRelations[]>;
   createResult(result: InsertResult): Promise<Result>;
   updateResultStatus(resultId: string, status: ResultStatus, verifiedBy?: string, flaggedReason?: string): Promise<Result>;
+  flagForDocumentMismatch(resultId: string, reason: string): Promise<Result>;
+  updateResult(resultId: string, updates: Partial<InsertResult>): Promise<Result>;
+  updateUser(userId: string, updates: Partial<InsertUser>): Promise<User>;
+  getUserById(userId: string): Promise<User | undefined>;
   
   // Result file operations
   createResultFile(file: InsertResultFile): Promise<ResultFile>;
@@ -447,7 +452,9 @@ export class DatabaseStorage implements IStorage {
         ...result, 
         totalVotes, 
         status,
-        flaggedReason
+        flaggedReason,
+        documentMismatch: false,
+        documentMismatchReason: null
       })
       .returning();
     return newResult;
@@ -479,6 +486,55 @@ export class DatabaseStorage implements IStorage {
       .where(eq(results.id, resultId))
       .returning();
     return updatedResult;
+  }
+
+  async flagForDocumentMismatch(resultId: string, reason: string): Promise<Result> {
+    const [updatedResult] = await db
+      .update(results)
+      .set({ 
+        status: 'flagged',
+        documentMismatch: true,
+        documentMismatchReason: reason,
+        flaggedReason: `Document data mismatch: ${reason}`,
+        updatedAt: new Date()
+      })
+      .where(eq(results.id, resultId))
+      .returning();
+    return updatedResult;
+  }
+
+  async updateResult(resultId: string, updates: Partial<InsertResult>): Promise<Result> {
+    const [updatedResult] = await db
+      .update(results)
+      .set({ 
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(results.id, resultId))
+      .returning();
+    return updatedResult;
+  }
+
+  async getResult(id: string): Promise<Result | undefined> {
+    const [result] = await db.select().from(results).where(eq(results.id, id));
+    return result;
+  }
+
+  async updateUser(userId: string, updates: Partial<InsertUser>): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ 
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return updatedUser;
+  }
+
+  async getUserById(userId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    return user;
   }
 
   // Result file operations

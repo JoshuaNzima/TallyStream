@@ -17,6 +17,55 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// Document validation function
+async function validateDocumentData(submittedData: any, uploadedFiles: any[]): Promise<{isValid: boolean, reason?: string}> {
+  // Basic validation checks
+  const checks = [];
+  
+  // Check if total votes are reasonable (within 1-99% of registered voters × 3)
+  const totalVotes = submittedData.presidentialVotes?.reduce((sum: number, vote: any) => sum + vote.votes, 0) +
+    submittedData.mpVotes?.reduce((sum: number, vote: any) => sum + vote.votes, 0) +
+    submittedData.councilorVotes?.reduce((sum: number, vote: any) => sum + vote.votes, 0) +
+    submittedData.invalidVotes;
+  
+  // Check for suspicious patterns
+  if (totalVotes < 10) {
+    checks.push("Total votes unusually low (less than 10)");
+  }
+  
+  // Check if uploaded files exist and have reasonable sizes
+  if (uploadedFiles.length === 0) {
+    checks.push("No supporting documents uploaded");
+  } else {
+    for (const file of uploadedFiles) {
+      if (file.size < 1000) { // Less than 1KB
+        checks.push(`Document ${file.originalname} appears to be too small`);
+      }
+      if (file.size > 8 * 1024 * 1024) { // Larger than 8MB
+        checks.push(`Document ${file.originalname} appears to be unusually large`);
+      }
+    }
+  }
+  
+  // Check for mismatched vote counts (simple validation)
+  const hasPresidentialVotes = submittedData.presidentialVotes && submittedData.presidentialVotes.length > 0;
+  const hasMpVotes = submittedData.mpVotes && submittedData.mpVotes.length > 0;
+  const hasCouncilorVotes = submittedData.councilorVotes && submittedData.councilorVotes.length > 0;
+  
+  if (!hasPresidentialVotes || !hasMpVotes || !hasCouncilorVotes) {
+    checks.push("Missing vote counts for one or more election categories (Presidential, MP, or Councilor)");
+  }
+  
+  if (checks.length > 0) {
+    return {
+      isValid: false,
+      reason: checks.join("; ")
+    };
+  }
+  
+  return { isValid: true };
+}
+
 const upload = multer({
   dest: uploadDir,
   limits: {
@@ -797,6 +846,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             mimeType: file.mimetype,
           });
         }
+
+        // Perform document validation check
+        const documentValidationResult = await validateDocumentData(validatedData, req.files);
+        if (!documentValidationResult.isValid) {
+          // Flag the result for document mismatch
+          await storage.flagForDocumentMismatch(result.id, documentValidationResult.reason);
+        }
       }
 
       // Log audit
@@ -890,8 +946,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/results/:id/status", isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
-      if (user?.role !== 'supervisor' && user?.role !== 'admin') {
-        return res.status(403).json({ message: "Access denied. Supervisor or admin role required." });
+      if (user?.role !== 'supervisor' && user?.role !== 'admin' && user?.role !== 'reviewer') {
+        return res.status(403).json({ message: "Access denied. Supervisor, admin, or reviewer role required." });
       }
 
       const { status, flaggedReason } = req.body;
@@ -1533,6 +1589,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.sendFile(filePath);
     } else {
       res.status(404).json({ message: "File not found" });
+    }
+  });
+
+  // Flag result for document mismatch
+  app.post("/api/results/:id/flag-document-mismatch", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (user?.role !== 'supervisor' && user?.role !== 'admin' && user?.role !== 'reviewer') {
+        return res.status(403).json({ message: "Access denied. Supervisor, admin, or reviewer role required." });
+      }
+
+      const { reason } = req.body;
+      const resultId = req.params.id;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Reason for document mismatch is required" });
+      }
+
+      const updatedResult = await storage.flagForDocumentMismatch(resultId, reason);
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "FLAG_DOCUMENT_MISMATCH",
+        entityType: "result",
+        entityId: resultId,
+        newValues: { documentMismatch: true, documentMismatchReason: reason },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json(updatedResult);
+    } catch (error) {
+      console.error("Error flagging document mismatch:", error);
+      res.status(400).json({ message: "Failed to flag document mismatch" });
+    }
+  });
+
+  // Edit result (reviewers can edit flagged results)
+  app.patch("/api/results/:id/edit", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (user?.role !== 'supervisor' && user?.role !== 'admin' && user?.role !== 'reviewer') {
+        return res.status(403).json({ message: "Access denied. Supervisor, admin, or reviewer role required." });
+      }
+
+      const resultId = req.params.id;
+      const updates = req.body;
+
+      // Get the current result to check if it's flagged
+      const currentResult = await storage.getResult(resultId);
+      if (!currentResult) {
+        return res.status(404).json({ message: "Result not found" });
+      }
+
+      // Only allow editing flagged results
+      if (currentResult.status !== 'flagged') {
+        return res.status(400).json({ message: "Only flagged results can be edited" });
+      }
+
+      const updatedResult = await storage.updateResult(resultId, {
+        ...updates,
+        status: 'pending' // Reset status to pending after edit
+      });
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "EDIT_FLAGGED_RESULT",
+        entityType: "result",
+        entityId: resultId,
+        oldValues: currentResult,
+        newValues: updates,
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json(updatedResult);
+    } catch (error) {
+      console.error("Error editing result:", error);
+      res.status(400).json({ message: "Failed to edit result" });
     }
   });
 

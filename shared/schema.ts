@@ -125,6 +125,8 @@ export const results = pgTable("results", {
   submissionChannel: submissionChannelEnum("submission_channel").notNull(),
   comments: text("comments"),
   flaggedReason: text("flagged_reason"),
+  documentMismatch: boolean("document_mismatch").default(false).notNull(),
+  documentMismatchReason: text("document_mismatch_reason"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   verifiedAt: timestamp("verified_at"),

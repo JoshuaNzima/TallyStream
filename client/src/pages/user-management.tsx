@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, Shield, UserX, Trash2, UserCheck, Edit, Eye, Phone, Mail, Calendar, Clock } from "lucide-react";
+import { Users, Shield, UserX, Trash2, UserCheck, Edit, Eye, Phone, Mail, Calendar, Clock, CheckCircle } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -46,6 +46,11 @@ export default function UserManagement() {
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["/api/users"],
+  });
+
+  // Fetch pending users for approval
+  const { data: pendingUsers } = useQuery({
+    queryKey: ["/api/admin/pending-users"],
   });
 
   const updateRoleMutation = useMutation({
@@ -165,6 +170,29 @@ export default function UserManagement() {
     },
   });
 
+  // Approve user mutation
+  const approveUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("POST", `/api/admin/approve-user/${userId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pending-users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({
+        title: "Success",
+        description: "User approved successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to approve user",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleViewUser = (user: any) => {
     setSelectedUser(user);
     setIsViewDialogOpen(true);
@@ -185,6 +213,10 @@ export default function UserManagement() {
     if (selectedUser) {
       editUserMutation.mutate({ userId: selectedUser.id, userData: data });
     }
+  };
+
+  const handleApproveUser = (userId: string) => {
+    approveUserMutation.mutate(userId);
   };
 
   // Only admin users can access this page
@@ -225,6 +257,45 @@ export default function UserManagement() {
         </h2>
         <p className="text-gray-600">Manage user roles and permissions</p>
       </div>
+
+      {/* Pending User Approvals Section */}
+      {pendingUsers && Array.isArray(pendingUsers) && pendingUsers.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <CheckCircle className="h-5 w-5" />
+              <span>Pending User Approvals</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {pendingUsers.map((user: any) => (
+                <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50">
+                  <div>
+                    <p className="font-medium" data-testid={`text-pending-user-name-${user.id}`}>
+                      {user.firstName} {user.lastName}
+                    </p>
+                    <p className="text-sm text-gray-600" data-testid={`text-pending-user-contact-${user.id}`}>
+                      {user.email || user.phone}
+                    </p>
+                    <Badge variant="outline" className="mt-1">
+                      {user.role}
+                    </Badge>
+                  </div>
+                  <Button
+                    onClick={() => handleApproveUser(user.id)}
+                    disabled={approveUserMutation.isPending}
+                    data-testid={`button-approve-pending-${user.id}`}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    {approveUserMutation.isPending ? "Approving..." : "Approve"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

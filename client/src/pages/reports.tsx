@@ -412,7 +412,7 @@ export default function Reports() {
                           </Badge>
                         </div>
                         <div className="text-sm text-gray-600 grid grid-cols-2 gap-4">
-                          <div>Total Valid Votes: {result.totalValidVotes || 0}</div>
+                          <div>Total Valid Votes: {(result.totalVotes || 0) - (result.invalidVotes || 0)}</div>
                           <div>Invalid Votes: {result.invalidVotes || 0}</div>
                           <div>Submitted: {format(new Date(result.createdAt), "MMM dd, HH:mm")}</div>
                           <div>Status: {result.status}</div>
