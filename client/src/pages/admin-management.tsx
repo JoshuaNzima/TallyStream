@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 export default function AdminManagement() {
   const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState("president");
+  const [editingCenter, setEditingCenter] = useState<any>(null);
   const [cleanupOptions, setCleanupOptions] = useState({
     users: false,
     candidates: false,
@@ -120,6 +121,29 @@ export default function AdminManagement() {
       toast({
         title: "Error",
         description: "Failed to update polling center status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update polling center
+  const updatePollingCenterMutation = useMutation({
+    mutationFn: async (data: { id: string; name: string; constituency: string; district: string; state: string; registeredVoters: number }) => {
+      const res = await apiRequest("PUT", `/api/polling-centers/${data.id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Polling center updated successfully",
+      });
+      setEditingCenter(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/polling-centers"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update polling center",
         variant: "destructive",
       });
     },
@@ -491,6 +515,20 @@ export default function AdminManagement() {
           <Card>
             <CardHeader>
               <CardTitle>Add New Candidate</CardTitle>
+              <div className="flex gap-2 mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Download CSV template
+                    window.open('/api/template/candidates-csv', '_blank');
+                  }}
+                  data-testid="button-download-candidate-template"
+                >
+                  <Database className="h-4 w-4 mr-2" />
+                  Download CSV Template
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddCandidate} className="space-y-4">
@@ -873,12 +911,7 @@ export default function AdminManagement() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          toast({
-                            title: "Edit Polling Center",
-                            description: `Edit functionality for ${center.name} will be implemented.`,
-                          });
-                        }}
+                        onClick={() => setEditingCenter(center)}
                         data-testid={`button-edit-center-${center.id}`}
                       >
                         <Edit className="h-3 w-3 mr-1" />
@@ -932,6 +965,103 @@ export default function AdminManagement() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Edit Polling Center Modal */}
+          {editingCenter && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                <h3 className="text-lg font-semibold mb-4">Edit Polling Center</h3>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    updatePollingCenterMutation.mutate({
+                      id: editingCenter.id,
+                      name: formData.get("name") as string,
+                      constituency: formData.get("constituency") as string,
+                      district: formData.get("district") as string,
+                      state: formData.get("state") as string,
+                      registeredVoters: parseInt(formData.get("registeredVoters") as string),
+                    });
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Name</label>
+                    <input
+                      type="text"
+                      name="name"
+                      defaultValue={editingCenter.name}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      data-testid="input-edit-center-name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Constituency</label>
+                    <input
+                      type="text"
+                      name="constituency"
+                      defaultValue={editingCenter.constituency}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      data-testid="input-edit-center-constituency"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">District</label>
+                    <input
+                      type="text"
+                      name="district"
+                      defaultValue={editingCenter.district}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      data-testid="input-edit-center-district"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">State/Region</label>
+                    <input
+                      type="text"
+                      name="state"
+                      defaultValue={editingCenter.state}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      data-testid="input-edit-center-state"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Registered Voters</label>
+                    <input
+                      type="number"
+                      name="registeredVoters"
+                      defaultValue={editingCenter.registeredVoters}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      data-testid="input-edit-center-voters"
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-4">
+                    <Button
+                      type="submit"
+                      disabled={updatePollingCenterMutation.isPending}
+                      data-testid="button-save-center-edit"
+                    >
+                      {updatePollingCenterMutation.isPending ? "Saving..." : "Save Changes"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setEditingCenter(null)}
+                      data-testid="button-cancel-center-edit"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="api" className="space-y-4">

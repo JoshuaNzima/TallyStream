@@ -202,6 +202,8 @@ router.get('/template/constituencies', isAuthenticated, async (req: any, res) =>
     // Add headers
     worksheet.columns = [
       { header: 'Constituency', key: 'constituency', width: 30 },
+      { header: 'District', key: 'district', width: 20 },
+      { header: 'Region', key: 'region', width: 20 },
       { header: 'Ward', key: 'ward', width: 30 },
       { header: 'Centre', key: 'centre', width: 40 },
       { header: 'Voters', key: 'voters', width: 15 }
@@ -211,24 +213,32 @@ router.get('/template/constituencies', isAuthenticated, async (req: any, res) =>
     const sampleData = [
       {
         constituency: '107 - LILONGWE CITY',
+        district: 'Lilongwe',
+        region: 'Central',
         ward: '10701 - MTANDIRE',
         centre: '1070101 - KANKODOLA L.E.A. SCHOOL',
         voters: 7432
       },
       {
         constituency: '107 - LILONGWE CITY',
+        district: 'Lilongwe',
+        region: 'Central',
         ward: '10701 - MTANDIRE',
         centre: '1070102 - MTANDIRE COMMUNITY CENTRE',
         voters: 6789
       },
       {
         constituency: '107 - LILONGWE CITY',
+        district: 'Lilongwe',
+        region: 'Central',
         ward: '10702 - CHINSAPO',
         centre: '1070201 - CHINSAPO PRIMARY SCHOOL',
         voters: 5432
       },
       {
         constituency: '108 - LILONGWE SOUTH',
+        district: 'Lilongwe',
+        region: 'Central',
         ward: '10801 - AREA 25',
         centre: '1080101 - AREA 25 COMMUNITY HALL',
         voters: 8901
@@ -409,6 +419,55 @@ router.get('/template/candidates', isAuthenticated, async (req: any, res) => {
     console.error('Template generation error:', error);
     res.status(500).json({ 
       error: 'Template generation failed', 
+      message: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
+// Generate and download CSV template for candidate import
+router.get('/template/candidates-csv', isAuthenticated, async (req: any, res) => {
+  try {
+    // Check admin permission
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Create CSV content with headers
+    const headers = [
+      'Name',
+      'Abbreviation', 
+      'Political Party',
+      'Category',
+      'Constituency/Ward',
+      'Phone',
+      'Email'
+    ];
+
+    // Sample data to show the format
+    const sampleRows = [
+      ['John Doe', 'JD', 'Democratic Progressive Party', 'president', '', '+265123456789', 'john.doe@example.com'],
+      ['Jane Smith', 'JS', 'Malawi Congress Party', 'mp', 'Lilongwe Central', '+265987654321', 'jane.smith@example.com'],
+      ['Mike Johnson', 'MJ', 'United Transformation Movement', 'councilor', 'Mtandire', '+265555123456', 'mike.johnson@example.com'],
+      ['Sarah Wilson', 'SW', 'Democratic Progressive Party', 'president', '', '+265111222333', 'sarah.wilson@example.com']
+    ];
+
+    // Convert to CSV format
+    const csvContent = [
+      headers.join(','),
+      ...sampleRows.map(row => row.map(field => `"${field}"`).join(','))
+    ].join('\n');
+
+    res.set({
+      'Content-Type': 'text/csv',
+      'Content-Disposition': `attachment; filename=candidates-template-${new Date().toISOString().slice(0, 10)}.csv`,
+      'Content-Length': Buffer.byteLength(csvContent).toString(),
+    });
+    
+    res.send(csvContent);
+  } catch (error) {
+    console.error('CSV template generation error:', error);
+    res.status(500).json({ 
+      error: 'CSV template generation failed', 
       message: error instanceof Error ? error.message : 'Unknown error' 
     });
   }

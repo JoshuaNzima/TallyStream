@@ -726,6 +726,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update polling center
+  app.put("/api/polling-centers/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { name, constituency, district, state, registeredVoters } = req.body;
+      const center = await storage.updatePollingCenter(req.params.id, {
+        name,
+        constituency,
+        district,
+        state,
+        registeredVoters: parseInt(registeredVoters),
+      });
+      res.json(center);
+    } catch (error) {
+      console.error("Error updating polling center:", error);
+      res.status(500).json({ message: "Failed to update polling center" });
+    }
+  });
+
   app.post("/api/polling-centers", isAuthenticated, async (req: any, res) => {
     try {
       // Only admins can create polling centers

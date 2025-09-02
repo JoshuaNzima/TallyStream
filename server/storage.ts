@@ -63,6 +63,9 @@ export interface IStorage {
   getPollingCenters(page?: number, limit?: number): Promise<{ data: PollingCenter[]; total: number; }>;
   getPollingCenter(id: string): Promise<PollingCenter | undefined>;
   createPollingCenter(center: InsertPollingCenter): Promise<PollingCenter>;
+  updatePollingCenter(id: string, data: Partial<PollingCenter>): Promise<PollingCenter>;
+  reactivatePollingCenter(id: string): Promise<PollingCenter>;
+  deactivatePollingCenter(id: string): Promise<PollingCenter>;
   
   // Political party operations
   getPoliticalParties(): Promise<PoliticalParty[]>;
@@ -275,6 +278,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(pollingCenters.id, id))
       .returning();
     return deactivatedCenter;
+  }
+
+  async updatePollingCenter(id: string, data: Partial<PollingCenter>): Promise<PollingCenter> {
+    const [updatedCenter] = await db
+      .update(pollingCenters)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(pollingCenters.id, id))
+      .returning();
+    return updatedCenter;
   }
 
   // Political party operations

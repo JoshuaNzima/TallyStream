@@ -78,6 +78,8 @@ export class ExcelImporter {
       try {
         const constituencyRaw = this.cleanString(row.Constituency || row.constituency);
         const constituencyName = this.cleanString(row.ConstituencyName || row['Constituency Name'] || row.constituency_name);
+        const district = this.cleanString(row.District || row.district || 'Unknown');
+        const region = this.cleanString(row.Region || row.region || 'Unknown');
         const wardRaw = this.cleanString(row.Ward || row.ward);
         const wardName = this.cleanString(row.WardName || row['Ward Name'] || row.ward_name);
         const centreRaw = this.cleanString(row.Centre || row.centre || row.Center || row.center);
@@ -105,7 +107,9 @@ export class ExcelImporter {
 
         if (!constituencyMap.has(constituencyId)) {
           constituencyMap.set(constituencyId, { 
-            name: constName, 
+            name: constName,
+            district: district,
+            region: region,
             wards: new Map() 
           });
         }
@@ -157,8 +161,8 @@ export class ExcelImporter {
           id: constituencyId,
           name: constituency.name,
           code: constituencyId,
-          district: 'Unknown', // Default - can be updated later
-          state: 'Unknown', // Default - can be updated later
+          district: constituency.district || 'Unknown',
+          state: constituency.region || 'Unknown',
         });
 
         for (const [wardId, ward] of Array.from(constituency.wards.entries())) {
@@ -194,11 +198,11 @@ export class ExcelImporter {
 
             // Create corresponding polling center linked to this centre
             await this.storage.createPollingCenter({
-              code: centre.id,
+              code: `PC-${centre.id}`,
               name: centre.name,
               constituency: constituency.name,
-              district: 'Unknown', // This should be updated based on your data
-              state: 'Unknown', // This should be updated based on your data  
+              district: constituency.district || 'Unknown',
+              state: constituency.region || 'Unknown',
               registeredVoters: centre.voters,
               centreId: centre.id,
             });
