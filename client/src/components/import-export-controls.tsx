@@ -68,6 +68,60 @@ export function ImportExportControls() {
     }
   };
 
+  const handleTemplateDownload = async (type: 'constituencies' | 'polling-centers' | 'candidates') => {
+    setExporting(true);
+
+    try {
+      const response = await fetch(`/api/template/${type}`);
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        
+        let filename = '';
+        switch (type) {
+          case 'constituencies':
+            filename = 'constituency-import-template.xlsx';
+            break;
+          case 'polling-centers':
+            filename = 'polling-centers-template.xlsx';
+            break;
+          case 'candidates':
+            filename = 'candidates-template.xlsx';
+            break;
+        }
+        
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+
+        toast({
+          title: "Template downloaded",
+          description: `${filename} has been downloaded`,
+        });
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Download failed",
+          description: error.error || "Failed to download template",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: "Network error during template download",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleExport = async (type: 'results-excel' | 'results-pdf' | 'constituencies-excel' | 'summary-pdf') => {
     setExporting(true);
 
@@ -131,18 +185,89 @@ export function ImportExportControls() {
   };
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      {/* Import Section */}
+    <div className="space-y-6">
+      {/* Templates Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Import Data
+            <Download className="h-5 w-5" />
+            Download Templates
           </CardTitle>
           <CardDescription>
-            Upload Excel files to import constituencies, wards, and centres data
+            Download Excel templates with sample data and instructions for importing
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm">Constituencies</h4>
+              <p className="text-xs text-muted-foreground">
+                Hierarchical constituency, ward, and centre data
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleTemplateDownload('constituencies')}
+                disabled={importing || exporting}
+                data-testid="button-download-template-constituencies"
+                className="w-full"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                Download Template
+              </Button>
+            </div>
+            
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm">Polling Centers</h4>
+              <p className="text-xs text-muted-foreground">
+                Polling center locations and details
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleTemplateDownload('polling-centers')}
+                disabled={importing || exporting}
+                data-testid="button-download-template-polling-centers"
+                className="w-full"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                Download Template
+              </Button>
+            </div>
+            
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm">Candidates</h4>
+              <p className="text-xs text-muted-foreground">
+                Candidate names, parties, and categories
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleTemplateDownload('candidates')}
+                disabled={importing || exporting}
+                data-testid="button-download-template-candidates"
+                className="w-full"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                Download Template
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Import Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Import Data
+            </CardTitle>
+            <CardDescription>
+              Upload Excel files to import constituencies, wards, and centres data
+            </CardDescription>
+          </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="file-upload">Select Excel File</Label>
@@ -167,6 +292,9 @@ export function ImportExportControls() {
               <div><strong>Centre:</strong> 1070101 - KANKODOLA L.E.A. SCHOOL</div>
               <div><strong>Voters:</strong> 7432</div>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              💡 Download the template above for exact format and instructions
+            </p>
           </div>
 
           {importing && (
@@ -256,6 +384,7 @@ export function ImportExportControls() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
