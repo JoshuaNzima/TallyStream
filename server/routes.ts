@@ -357,6 +357,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get wards for dropdowns
+  app.get('/api/wards', isAuthenticated, async (req, res) => {
+    try {
+      const wards = await storage.getWards();
+      res.json(wards);
+    } catch (error) {
+      console.error('Error fetching wards:', error);
+      res.status(500).json({ error: 'Failed to fetch wards' });
+    }
+  });
+
   // Auth routes
   app.post('/api/register', async (req, res) => {
     try {

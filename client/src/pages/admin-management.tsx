@@ -73,6 +73,11 @@ export default function AdminManagement() {
     queryKey: ["/api/constituencies"],
   });
 
+  // Fetch wards for councilor dropdown
+  const { data: wards } = useQuery({
+    queryKey: ["/api/wards"],
+  });
+
 
   // Toggle candidate active status
   const toggleCandidateMutation = useMutation({
@@ -541,10 +546,10 @@ export default function AdminManagement() {
                     </SelectContent>
                   </Select>
                   
-                  {(selectedCategory === "mp" || selectedCategory === "councilor") && (
+                  {selectedCategory === "mp" && (
                     <Select name="candidateConstituency" required>
                       <SelectTrigger data-testid="select-candidate-constituency">
-                        <SelectValue placeholder={selectedCategory === "mp" ? "Select Constituency" : "Select Ward"} />
+                        <SelectValue placeholder="Select Constituency" />
                       </SelectTrigger>
                       <SelectContent>
                         {constituencies && Array.isArray(constituencies) && constituencies
@@ -552,6 +557,23 @@ export default function AdminManagement() {
                           .map((constituency: any) => (
                             <SelectItem key={constituency.id} value={constituency.name}>
                               {constituency.name} ({constituency.district})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  
+                  {selectedCategory === "councilor" && (
+                    <Select name="candidateConstituency" required>
+                      <SelectTrigger data-testid="select-candidate-ward">
+                        <SelectValue placeholder="Select Ward" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {wards && Array.isArray(wards) && wards
+                          .filter((ward: any) => ward.isActive)
+                          .map((ward: any) => (
+                            <SelectItem key={ward.id} value={ward.name}>
+                              {ward.name} ({ward.id})
                             </SelectItem>
                           ))}
                       </SelectContent>

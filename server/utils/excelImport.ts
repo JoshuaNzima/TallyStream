@@ -184,12 +184,23 @@ export class ExcelImporter {
             }
 
             // Create centre
-            await this.storage.upsertCentre({
+            const createdCentre = await this.storage.upsertCentre({
               id: centre.id,
               wardId: wardId,
               name: centre.name,
               code: centre.id,
               registeredVoters: centre.voters,
+            });
+
+            // Create corresponding polling center linked to this centre
+            await this.storage.createPollingCenter({
+              code: centre.id,
+              name: centre.name,
+              constituency: constituency.name,
+              district: 'Unknown', // This should be updated based on your data
+              state: 'Unknown', // This should be updated based on your data  
+              registeredVoters: centre.voters,
+              centreId: centre.id,
             });
             success++;
           }

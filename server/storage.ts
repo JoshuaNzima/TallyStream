@@ -54,6 +54,7 @@ export interface IStorage {
   // Hierarchical location operations
   getAllConstituenciesWithHierarchy(): Promise<(Constituency & { wards: (Ward & { centres: Centre[] })[] })[]>;
   getConstituencies(): Promise<Constituency[]>;
+  getWards(): Promise<Ward[]>;
   upsertConstituency(constituency: InsertConstituency): Promise<Constituency>;
   upsertWard(ward: InsertWard): Promise<Ward>;
   upsertCentre(centre: InsertCentre): Promise<Centre>;
@@ -1158,6 +1159,10 @@ export class DatabaseStorage implements IStorage {
 
   async getConstituencies(): Promise<Constituency[]> {
     return await db.select().from(constituencies).where(eq(constituencies.isActive, true));
+  }
+
+  async getWards(): Promise<Ward[]> {
+    return await db.select().from(wards).where(eq(wards.isActive, true));
   }
 
   async getConstituency(id: string): Promise<Constituency | null> {
