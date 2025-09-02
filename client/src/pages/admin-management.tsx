@@ -326,11 +326,21 @@ export default function AdminManagement() {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     
+    const name = formData.get('candidateName') as string;
+    const abbreviation = formData.get('candidateAbbreviation') as string;
+    
+    // Auto-generate abbreviation if not provided
+    const finalAbbreviation = abbreviation || 
+      name.split(' ')
+        .map(word => word.charAt(0).toUpperCase())
+        .join('');
+    
     const candidateData = {
-      name: formData.get('candidateName'),
+      name,
       party: formData.get('candidateParty'),
       category: selectedCategory,
       constituency: formData.get('candidateConstituency'),
+      abbreviation: finalAbbreviation,
     };
 
     addCandidateMutation.mutate(candidateData);
@@ -504,6 +514,14 @@ export default function AdminManagement() {
                         ))}
                     </SelectContent>
                   </Select>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    name="candidateAbbreviation"
+                    placeholder="Abbreviation (optional - auto-generated from name if empty)"
+                    data-testid="input-candidate-abbreviation"
+                  />
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
