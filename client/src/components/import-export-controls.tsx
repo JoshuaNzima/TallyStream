@@ -4,15 +4,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { Upload, Download, FileSpreadsheet, FileText, Sheet } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+interface SheetInfo {
+  name: string;
+  rowCount: number;
+}
 
 export function ImportExportControls() {
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [analyzingFile, setAnalyzingFile] = useState(false);
+  const [availableSheets, setAvailableSheets] = useState<SheetInfo[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState<string>('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -26,9 +36,72 @@ export function ImportExportControls() {
       return;
     }
 
-    setImporting(true);
+    setSelectedFile(file);
+    setAnalyzingFile(true);
+    setAvailableSheets([]);
+    setSelectedSheet('');
+
     const formData = new FormData();
     formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/import/sheets', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setAvailableSheets(result.sheets);
+        
+        // If only one sheet, auto-select it
+        if (result.sheets.length === 1) {
+          setSelectedSheet(result.sheets[0].name);
+        }
+
+        toast({
+          title: "File analyzed",
+          description: `Found ${result.totalSheets} sheet(s). ${result.sheets.length === 1 ? 'Ready to import.' : 'Please select a sheet to import.'}`,
+        });
+      } else {
+        toast({
+          title: "Analysis failed",
+          description: result.error || "Failed to analyze file",
+          variant: "destructive",
+        });
+        // Clear file selection on error
+        setSelectedFile(null);
+        event.target.value = '';
+      }
+    } catch (error) {
+      toast({
+        title: "Analysis failed",
+        description: "Network error during file analysis",
+        variant: "destructive",
+      });
+      // Clear file selection on error
+      setSelectedFile(null);
+      event.target.value = '';
+    } finally {
+      setAnalyzingFile(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!selectedFile || !selectedSheet) {
+      toast({
+        title: "Missing selection",
+        description: "Please select a file and sheet to import",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setImporting(true);
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('sheetName', selectedSheet);
 
     try {
       const response = await fetch('/api/import/constituencies', {
@@ -41,13 +114,22 @@ export function ImportExportControls() {
       if (response.ok) {
         toast({
           title: "Import successful",
-          description: `Imported ${result.success} items. ${result.errors.length} errors.`,
+          description: `Imported ${result.success} items from sheet "${selectedSheet}". ${result.errors.length} errors.`,
         });
 
         // Show errors if any
         if (result.errors.length > 0) {
           console.log('Import errors:', result.errors);
         }
+
+        // Reset state after successful import
+        setSelectedFile(null);
+        setAvailableSheets([]);
+        setSelectedSheet('');
+        
+        // Clear the file input
+        const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
       } else {
         toast({
           title: "Import failed",
@@ -63,9 +145,15 @@ export function ImportExportControls() {
       });
     } finally {
       setImporting(false);
-      // Clear the input
-      event.target.value = '';
     }
+  };
+
+  const resetFileSelection = () => {
+    setSelectedFile(null);
+    setAvailableSheets([]);
+    setSelectedSheet('');
+    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
   };
 
   const handleTemplateDownload = async (type: 'constituencies' | 'polling-centers' | 'candidates') => {
@@ -275,14 +363,76 @@ export function ImportExportControls() {
               id="file-upload"
               type="file"
               accept=".xlsx,.xls"
-              onChange={handleFileUpload}
-              disabled={importing}
+              onChange={handleFileSelect}
+              disabled={importing || analyzingFile}
               data-testid="input-file-upload"
             />
             <p className="text-sm text-muted-foreground">
               Expected format: Constituency, Ward, Centre, Voters columns
             </p>
           </div>
+
+          {/* Sheet Selection */}
+          {availableSheets.length > 1 && (
+            <div className="space-y-2">
+              <Label htmlFor="sheet-select">Select Sheet to Import</Label>
+              <Select value={selectedSheet} onValueChange={setSelectedSheet}>
+                <SelectTrigger id="sheet-select" data-testid="select-sheet">
+                  <SelectValue placeholder="Choose a sheet..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSheets.map((sheet) => (
+                    <SelectItem key={sheet.name} value={sheet.name}>
+                      <div className="flex items-center gap-2">
+                        <Sheet className="h-4 w-4" />
+                        <span>{sheet.name}</span>
+                        <span className="text-muted-foreground text-xs">
+                          ({sheet.rowCount} rows)
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Selected Sheet Info */}
+          {selectedSheet && availableSheets.length > 0 && (
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-2 text-sm">
+                <Sheet className="h-4 w-4 text-blue-600" />
+                <span className="font-medium">Selected Sheet:</span>
+                <span>{selectedSheet}</span>
+                <span className="text-muted-foreground">
+                  ({availableSheets.find(s => s.name === selectedSheet)?.rowCount || 0} rows)
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Import Button */}
+          {selectedFile && selectedSheet && (
+            <div className="flex gap-2">
+              <Button
+                onClick={handleImport}
+                disabled={importing || !selectedSheet}
+                className="flex-1"
+                data-testid="button-import"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {importing ? 'Importing...' : `Import from "${selectedSheet}"`}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={resetFileSelection}
+                disabled={importing}
+                data-testid="button-reset"
+              >
+                Reset
+              </Button>
+            </div>
+          )}
           
           <div className="bg-muted p-3 rounded-lg">
             <h4 className="font-medium text-sm mb-2">Expected Excel Format:</h4>
@@ -297,6 +447,13 @@ export function ImportExportControls() {
             </p>
           </div>
 
+          {/* Status Messages */}
+          {analyzingFile && (
+            <div className="text-sm text-center text-muted-foreground">
+              Analyzing Excel file, please wait...
+            </div>
+          )}
+          
           {importing && (
             <div className="text-sm text-center text-muted-foreground">
               Importing data, please wait...

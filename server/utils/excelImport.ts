@@ -15,9 +15,34 @@ export interface ImportRow {
 export class ExcelImporter {
   constructor(private storage: DatabaseStorage) {}
 
-  async importFromBuffer(buffer: Buffer): Promise<{ success: number; errors: string[] }> {
+  // Get available sheets from an Excel file
+  getAvailableSheets(buffer: Buffer): { name: string; rowCount: number }[] {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    return workbook.SheetNames.map(sheetName => {
+      const worksheet = workbook.Sheets[sheetName];
+      const data: any[] = XLSX.utils.sheet_to_json(worksheet);
+      return {
+        name: sheetName,
+        rowCount: data.length
+      };
+    });
+  }
+
+  // Import from a specific sheet
+  async importFromBuffer(buffer: Buffer, sheetName?: string): Promise<{ success: number; errors: string[] }> {
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    
+    // Use specified sheet or default to first sheet
+    const targetSheetName = sheetName || workbook.SheetNames[0];
+    
+    if (!workbook.SheetNames.includes(targetSheetName)) {
+      return {
+        success: 0,
+        errors: [`Sheet "${targetSheetName}" not found. Available sheets: ${workbook.SheetNames.join(', ')}`]
+      };
+    }
+    
+    const worksheet = workbook.Sheets[targetSheetName];
     const data: any[] = XLSX.utils.sheet_to_json(worksheet);
 
     const errors: string[] = [];

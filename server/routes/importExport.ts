@@ -28,6 +28,33 @@ const upload = multer({
 const excelImporter = new ExcelImporter(storage);
 const exportUtils = new ExportUtils(storage);
 
+// Get available sheets from an Excel file
+router.post('/import/sheets', isAuthenticated, upload.single('file'), async (req: any, res) => {
+  try {
+    // Check admin permission
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const sheets = excelImporter.getAvailableSheets(req.file.buffer);
+    
+    res.json({
+      sheets,
+      totalSheets: sheets.length,
+    });
+  } catch (error) {
+    console.error('Sheets analysis error:', error);
+    res.status(500).json({ 
+      error: 'Failed to analyze Excel file', 
+      message: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
 // Import constituencies from Excel
 router.post('/import/constituencies', isAuthenticated, upload.single('file'), async (req: any, res) => {
   try {
@@ -40,7 +67,10 @@ router.post('/import/constituencies', isAuthenticated, upload.single('file'), as
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const result = await excelImporter.importFromBuffer(req.file.buffer);
+    // Get the sheet name from request body (optional)
+    const sheetName = req.body.sheetName;
+
+    const result = await excelImporter.importFromBuffer(req.file.buffer, sheetName);
     
     res.json({
       message: 'Import completed',
