@@ -90,9 +90,13 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser(async (id: string, cb) => {
     try {
       const user = await storage.getUser(id);
+      if (!user || !user.isActive) {
+        return cb(null, false);
+      }
       cb(null, user);
     } catch (error) {
-      cb(error);
+      console.error('Error deserializing user:', error);
+      cb(null, false);
     }
   });
 }

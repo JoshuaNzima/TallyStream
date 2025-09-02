@@ -4,7 +4,7 @@ import { ExcelImporter } from '../utils/excelImport';
 import { ExportUtils } from '../utils/exportUtils';
 import { storage } from '../storage';
 import { isAuthenticated } from '../auth';
-import * as ExcelJS from 'exceljs';
+import ExcelJS from 'exceljs';
 
 const router = Router();
 
