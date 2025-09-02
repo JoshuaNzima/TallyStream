@@ -303,7 +303,7 @@ router.get('/template/constituencies', isAuthenticated, async (req: any, res) =>
     res.set({
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': 'attachment; filename=constituency-import-template.xlsx',
-      'Content-Length': buffer.length.toString(),
+      'Content-Length': Buffer.byteLength(buffer).toString(),
     });
 
     res.send(buffer);
@@ -386,7 +386,7 @@ router.get('/template/polling-centers', isAuthenticated, async (req: any, res) =
     res.set({
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': 'attachment; filename=polling-centers-template.xlsx',
-      'Content-Length': buffer.length.toString(),
+      'Content-Length': Buffer.byteLength(buffer).toString(),
     });
 
     res.send(buffer);
@@ -465,7 +465,7 @@ router.get('/template/candidates', isAuthenticated, async (req: any, res) => {
     res.set({
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': 'attachment; filename=candidates-template.xlsx',
-      'Content-Length': buffer.length.toString(),
+      'Content-Length': Buffer.byteLength(buffer).toString(),
     });
 
     res.send(buffer);
