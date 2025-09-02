@@ -94,6 +94,7 @@ export const politicalParties = pgTable("political_parties", {
 export const candidates = pgTable("candidates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
+  abbreviation: varchar("abbreviation").unique(), // For USSD quick submissions
   partyId: varchar("party_id").references(() => politicalParties.id),
   party: varchar("party").notNull(), // Keep for backward compatibility
   category: candidateCategoryEnum("category").notNull(),

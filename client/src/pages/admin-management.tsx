@@ -230,6 +230,97 @@ export default function AdminManagement() {
     },
   });
 
+  // Bulk upload polling centers mutation
+  const bulkUploadPollingCentersMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const res = await fetch('/api/admin/bulk-upload/polling-centers', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to upload');
+      }
+      
+      return res.json();
+    },
+    onSuccess: (data) => {
+      const { created, errors } = data;
+      let description = `Successfully uploaded ${created} polling centers.`;
+      
+      if (errors.length > 0) {
+        description += ` ${errors.length} rows had errors. Check console for details.`;
+        console.error('Upload errors:', errors);
+      }
+      
+      toast({
+        title: "Upload Complete",
+        description,
+        variant: errors.length > 0 ? "destructive" : "default",
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/polling-centers"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload polling centers",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Bulk upload candidates mutation
+  const bulkUploadCandidatesMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const res = await fetch('/api/admin/bulk-upload/candidates', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to upload');
+      }
+      
+      return res.json();
+    },
+    onSuccess: (data) => {
+      const { created, errors } = data;
+      let description = `Successfully uploaded ${created} candidates.`;
+      
+      if (errors.length > 0) {
+        description += ` ${errors.length} rows had errors. Check console for details.`;
+        console.error('Upload errors:', errors);
+      }
+      
+      toast({
+        title: "Upload Complete",
+        description,
+        variant: errors.length > 0 ? "destructive" : "default",
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/political-parties"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload candidates",
+        variant: "destructive",
+      });
+    },
+  });
+
 
   const handleAddCandidate = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -260,6 +351,60 @@ export default function AdminManagement() {
     };
 
     addPollingCenterMutation.mutate(centerData);
+    event.currentTarget.reset();
+  };
+
+  const handleBulkUploadPollingCenters = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const file = formData.get('pollingCentersFile') as File;
+    
+    if (!file) {
+      toast({
+        title: "No file selected",
+        description: "Please select a CSV file to upload",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a CSV file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    bulkUploadPollingCentersMutation.mutate(file);
+    event.currentTarget.reset();
+  };
+
+  const handleBulkUploadCandidates = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const file = formData.get('candidatesFile') as File;
+    
+    if (!file) {
+      toast({
+        title: "No file selected",
+        description: "Please select a CSV file to upload",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a CSV file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    bulkUploadCandidatesMutation.mutate(file);
     event.currentTarget.reset();
   };
 
@@ -387,6 +532,54 @@ export default function AdminManagement() {
                   {addCandidateMutation.isPending ? "Adding..." : "Add Candidate"}
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="w-5 h-5" />
+                Bulk Upload Candidates
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <h4 className="font-medium text-green-900 mb-2">CSV Format Requirements:</h4>
+                  <p className="text-sm text-green-800 mb-2">
+                    Your CSV file must include these columns (case-insensitive):
+                  </p>
+                  <div className="text-sm text-green-700 font-mono bg-green-100 p-2 rounded mb-2">
+                    name,party,category,constituency,abbreviation
+                  </div>
+                  <div className="text-xs text-green-600 space-y-1">
+                    <p><strong>Required:</strong> name, party, category</p>
+                    <p><strong>Optional:</strong> constituency (for mp/councilor), abbreviation</p>
+                    <p><strong>Categories:</strong> president, mp, councilor</p>
+                    <p><strong>Example:</strong> John Doe,Democratic Progressive Party,president,,JD</p>
+                  </div>
+                </div>
+                
+                <form onSubmit={handleBulkUploadCandidates} className="space-y-4">
+                  <div>
+                    <Input
+                      type="file"
+                      accept=".csv"
+                      name="candidatesFile"
+                      required
+                      className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                    />
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    disabled={bulkUploadCandidatesMutation.isPending}
+                    className="w-full"
+                  >
+                    {bulkUploadCandidatesMutation.isPending ? "Uploading..." : "Upload Candidates"}
+                  </Button>
+                </form>
+              </div>
             </CardContent>
           </Card>
 
@@ -551,6 +744,51 @@ export default function AdminManagement() {
                   {addPollingCenterMutation.isPending ? "Adding..." : "Add Polling Center"}
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="w-5 h-5" />
+                Bulk Upload Polling Centers
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">CSV Format Requirements:</h4>
+                  <p className="text-sm text-blue-800 mb-2">
+                    Your CSV file must include these columns (case-insensitive):
+                  </p>
+                  <div className="text-sm text-blue-700 font-mono bg-blue-100 p-2 rounded">
+                    code,name,constituency,district,state,registeredvoters
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2">
+                    Example: PC001,Primary School,Lilongwe Central,Lilongwe,Central,1500
+                  </p>
+                </div>
+                
+                <form onSubmit={handleBulkUploadPollingCenters} className="space-y-4">
+                  <div>
+                    <Input
+                      type="file"
+                      accept=".csv"
+                      name="pollingCentersFile"
+                      required
+                      className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    disabled={bulkUploadPollingCentersMutation.isPending}
+                    className="w-full"
+                  >
+                    {bulkUploadPollingCentersMutation.isPending ? "Uploading..." : "Upload Polling Centers"}
+                  </Button>
+                </form>
+              </div>
             </CardContent>
           </Card>
 

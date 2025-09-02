@@ -231,6 +231,11 @@ export class DatabaseStorage implements IStorage {
     return center;
   }
 
+  async getPollingCenterByCode(code: string): Promise<PollingCenter | undefined> {
+    const [center] = await db.select().from(pollingCenters).where(eq(pollingCenters.code, code));
+    return center;
+  }
+
   async createPollingCenter(center: InsertPollingCenter): Promise<PollingCenter> {
     const [newCenter] = await db.insert(pollingCenters).values(center).returning();
     return newCenter;
@@ -257,6 +262,11 @@ export class DatabaseStorage implements IStorage {
   // Political party operations
   async getPoliticalParties(): Promise<PoliticalParty[]> {
     return await db.select().from(politicalParties).where(eq(politicalParties.isActive, true)).orderBy(politicalParties.name);
+  }
+
+  async getPoliticalPartyByName(name: string): Promise<PoliticalParty | undefined> {
+    const [party] = await db.select().from(politicalParties).where(eq(politicalParties.name, name));
+    return party;
   }
 
   async createPoliticalParty(party: InsertPoliticalParty): Promise<PoliticalParty> {
@@ -323,6 +333,25 @@ export class DatabaseStorage implements IStorage {
 
     const data = await query;
     return { data, total };
+  }
+
+  async getCandidatesByCategory(category: 'president' | 'mp' | 'councilor', constituency?: string): Promise<Candidate[]> {
+    let query = db.select().from(candidates)
+      .where(and(
+        eq(candidates.category, category),
+        eq(candidates.isActive, true)
+      ));
+
+    // For MP and Councilor, filter by constituency if provided
+    if ((category === 'mp' || category === 'councilor') && constituency) {
+      query = query.where(and(
+        eq(candidates.category, category),
+        eq(candidates.isActive, true),
+        eq(candidates.constituency, constituency)
+      )) as any;
+    }
+
+    return await query.orderBy(candidates.name);
   }
 
   async createCandidate(candidate: InsertCandidate): Promise<Candidate> {

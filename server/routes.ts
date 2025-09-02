@@ -160,6 +160,270 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin route to create users directly
+  app.post('/api/admin/create-user', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = req.user;
+      if (currentUser?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { email, phone, firstName, lastName, role, password } = req.body;
+
+      // Validate required fields
+      if (!firstName || !lastName) {
+        return res.status(400).json({ message: "First name and last name are required" });
+      }
+
+      if (!email && !phone) {
+        return res.status(400).json({ message: "Either email or phone number is required" });
+      }
+
+      if (!password || password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters long" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByIdentifier(email || phone || '');
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists with this email or phone" });
+      }
+
+      // Hash password and create user
+      const passwordHash = await hashPassword(password);
+      const user = await storage.createUser({
+        email: email || undefined,
+        phone: phone || undefined,
+        firstName,
+        lastName,
+        passwordHash,
+      });
+
+      // Set role and approve user immediately (admin-created users are auto-approved)
+      await storage.updateUserRole(user.id, role || 'agent');
+      await storage.approveUser(user.id);
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: "CREATE",
+        entityType: "user",
+        entityId: user.id,
+        newValues: { firstName, lastName, email, phone, role: role || 'agent', isApproved: true },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      // Get updated user with role
+      const updatedUser = await storage.getUser(user.id);
+      
+      // Remove password hash from response
+      const { passwordHash: _, ...userResponse } = updatedUser || user;
+      res.status(201).json(userResponse);
+    } catch (error: any) {
+      console.error("Error creating user:", error);
+      res.status(400).json({ message: error.message || "Failed to create user" });
+    }
+  });
+
+  // Bulk upload endpoints
+  app.post('/api/admin/bulk-upload/polling-centers', isAuthenticated, upload.single('file'), async (req: any, res) => {
+    try {
+      const currentUser = req.user;
+      if (currentUser?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const csvData = fs.readFileSync(req.file.path, 'utf8');
+      const lines = csvData.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        return res.status(400).json({ message: "CSV file must have header and at least one data row" });
+      }
+
+      const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
+      const requiredHeaders = ['code', 'name', 'constituency', 'district', 'state', 'registeredvoters'];
+      
+      const missingHeaders = requiredHeaders.filter(header => !headers.includes(header));
+      if (missingHeaders.length > 0) {
+        return res.status(400).json({ 
+          message: `Missing required headers: ${missingHeaders.join(', ')}. Required headers: ${requiredHeaders.join(', ')}` 
+        });
+      }
+
+      const results = { created: 0, errors: [] as any[] };
+      
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        if (values.length !== headers.length) continue;
+        
+        try {
+          const centerData: any = {};
+          headers.forEach((header, index) => {
+            centerData[header] = values[index];
+          });
+
+          // Validate required fields
+          if (!centerData.code || !centerData.name || !centerData.constituency || 
+              !centerData.district || !centerData.state || !centerData.registeredvoters) {
+            results.errors.push({ row: i + 1, error: "Missing required fields", data: centerData });
+            continue;
+          }
+
+          // Check if polling center already exists
+          const existingCenter = await storage.getPollingCenterByCode(centerData.code);
+          if (existingCenter) {
+            results.errors.push({ row: i + 1, error: `Polling center with code ${centerData.code} already exists`, data: centerData });
+            continue;
+          }
+
+          // Create polling center
+          await storage.createPollingCenter({
+            code: centerData.code,
+            name: centerData.name,
+            constituency: centerData.constituency,
+            district: centerData.district,
+            state: centerData.state,
+            registeredVoters: parseInt(centerData.registeredvoters) || 0,
+          });
+
+          results.created++;
+        } catch (error: any) {
+          results.errors.push({ row: i + 1, error: error.message, data: values });
+        }
+      }
+
+      // Clean up uploaded file
+      fs.unlinkSync(req.file.path);
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: "BULK_UPLOAD",
+        entityType: "polling_center",
+        entityId: "bulk",
+        newValues: { created: results.created, errors: results.errors.length },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error processing bulk upload:", error);
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.status(500).json({ message: error.message || "Failed to process bulk upload" });
+    }
+  });
+
+  app.post('/api/admin/bulk-upload/candidates', isAuthenticated, upload.single('file'), async (req: any, res) => {
+    try {
+      const currentUser = req.user;
+      if (currentUser?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const csvData = fs.readFileSync(req.file.path, 'utf8');
+      const lines = csvData.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        return res.status(400).json({ message: "CSV file must have header and at least one data row" });
+      }
+
+      const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
+      const requiredHeaders = ['name', 'party', 'category'];
+      const optionalHeaders = ['constituency', 'abbreviation'];
+      
+      const missingHeaders = requiredHeaders.filter(header => !headers.includes(header));
+      if (missingHeaders.length > 0) {
+        return res.status(400).json({ 
+          message: `Missing required headers: ${missingHeaders.join(', ')}. Required headers: ${requiredHeaders.join(', ')}. Optional: ${optionalHeaders.join(', ')}` 
+        });
+      }
+
+      const results = { created: 0, errors: [] as any[] };
+      
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        if (values.length < headers.length) continue;
+        
+        try {
+          const candidateData: any = {};
+          headers.forEach((header, index) => {
+            candidateData[header] = values[index] || '';
+          });
+
+          // Validate required fields
+          if (!candidateData.name || !candidateData.party || !candidateData.category) {
+            results.errors.push({ row: i + 1, error: "Missing required fields (name, party, category)", data: candidateData });
+            continue;
+          }
+
+          // Validate category
+          if (!['president', 'mp', 'councilor'].includes(candidateData.category.toLowerCase())) {
+            results.errors.push({ row: i + 1, error: "Invalid category. Must be: president, mp, or councilor", data: candidateData });
+            continue;
+          }
+
+          // Find or create political party
+          let party = await storage.getPoliticalPartyByName(candidateData.party);
+          if (!party) {
+            // Create new party with default color
+            party = await storage.createPoliticalParty({
+              name: candidateData.party,
+              abbreviation: candidateData.party.substring(0, 3).toUpperCase(),
+              color: '#6B7280', // Default gray color
+            });
+          }
+
+          // Create candidate
+          await storage.createCandidate({
+            name: candidateData.name,
+            partyId: party.id,
+            category: candidateData.category.toLowerCase() as 'president' | 'mp' | 'councilor',
+            constituency: candidateData.constituency || null,
+            abbreviation: candidateData.abbreviation || candidateData.name.substring(0, 3).toUpperCase(),
+          });
+
+          results.created++;
+        } catch (error: any) {
+          results.errors.push({ row: i + 1, error: error.message, data: values });
+        }
+      }
+
+      // Clean up uploaded file
+      fs.unlinkSync(req.file.path);
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: "BULK_UPLOAD",
+        entityType: "candidate",
+        entityId: "bulk",
+        newValues: { created: results.created, errors: results.errors.length },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error processing candidate bulk upload:", error);
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.status(500).json({ message: error.message || "Failed to process bulk upload" });
+    }
+  });
+
   // Auth routes
   app.post('/api/register', async (req, res) => {
     try {
@@ -1487,21 +1751,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         session = await storage.createUssdSession(phoneNumber, sessionId, "main_menu");
       }
       
+      // Check if phone number is authenticated for protected operations
+      const authenticatedUser = await storage.getUserByIdentifier(phoneNumber);
+      
       let response = "";
       
       switch (session.currentStep) {
         case "main_menu":
-          response = `Welcome to PTC Election System\n1. Register as Agent\n2. Submit Results\n3. Check Status\n0. Exit`;
-          await storage.updateUssdSession(sessionId, "main_menu", {});
+          if (authenticatedUser?.isApproved) {
+            response = `Welcome ${authenticatedUser.firstName}!\n1. Register as Agent\n2. Submit Results\n3. Check Status\n0. Exit`;
+          } else {
+            response = `Welcome to PTC Election System\n1. Register as Agent\n3. Check Status\n0. Exit\n\n(Submit Results requires verified account)`;
+          }
+          await storage.updateUssdSession(sessionId, "menu_selection", {});
           break;
           
-        case "register":
+        case "menu_selection":
           if (text === "1") {
             response = `Enter your first name:`;
             await storage.updateUssdSession(sessionId, "register_firstname", {});
           } else if (text === "2") {
-            response = `Enter polling center code:`;
-            await storage.updateUssdSession(sessionId, "submit_results_center", {});
+            if (!authenticatedUser?.isApproved) {
+              response = `You need a verified account to submit results. Please register first or contact admin.\n\n1. Register as Agent\n3. Check Status\n0. Exit`;
+              await storage.updateUssdSession(sessionId, "menu_selection", {});
+            } else {
+              response = `Enter polling center code:`;
+              await storage.updateUssdSession(sessionId, "submit_results_center", { userId: authenticatedUser.id });
+            }
           } else if (text === "3") {
             response = `Enter polling center code to check status:`;
             await storage.updateUssdSession(sessionId, "check_status", {});
@@ -1509,9 +1785,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             response = `Thank you for using PTC System`;
             await storage.expireUssdSession(sessionId);
           } else {
-            response = `Invalid option. Please try again.\n1. Register as Agent\n2. Submit Results\n3. Check Status\n0. Exit`;
+            response = `Invalid option. Please try again.\n1. Register as Agent\n${authenticatedUser?.isApproved ? '2. Submit Results\n' : ''}3. Check Status\n0. Exit`;
           }
           break;
+          
           
         case "register_firstname":
           const sessionData = { firstName: text };
@@ -1535,6 +1812,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.expireUssdSession(sessionId);
           break;
           
+        case "submit_results_center":
+          const centerCode = text.toUpperCase();
+          const pollingCenter = await storage.getPollingCenterByCode(centerCode);
+          
+          if (!pollingCenter) {
+            response = `Invalid polling center code. Please enter a valid code:`;
+          } else {
+            response = `Polling Center: ${pollingCenter.name}\nSelect category:\n1. Presidential\n2. Member of Parliament\n3. Councilor`;
+            await storage.updateUssdSession(sessionId, "submit_results_category", { 
+              ...session.sessionData, 
+              pollingCenterId: pollingCenter.id,
+              centerCode: pollingCenter.code,
+              centerName: pollingCenter.name
+            });
+          }
+          break;
+          
+        case "submit_results_category":
+          const categoryMap = { "1": "president", "2": "mp", "3": "councilor" };
+          const selectedCategory = categoryMap[text as "1" | "2" | "3"];
+          
+          if (!selectedCategory) {
+            response = `Invalid option. Select category:\n1. Presidential\n2. Member of Parliament\n3. Councilor`;
+          } else {
+            const sessionData = session.sessionData as any;
+            
+            // Get candidates for this category and constituency (if applicable)
+            let candidates;
+            if (selectedCategory === "president") {
+              candidates = await storage.getCandidatesByCategory("president");
+            } else {
+              // For MP/Councilor, filter by constituency
+              const center = await storage.getPollingCenter(sessionData.pollingCenterId);
+              candidates = await storage.getCandidatesByCategory(selectedCategory as "mp" | "councilor", center?.constituency);
+            }
+            
+            if (!candidates || candidates.length === 0) {
+              response = `No candidates found for this category. Returning to menu...`;
+              await storage.updateUssdSession(sessionId, "main_menu", {});
+            } else {
+              // Display candidates with abbreviations
+              let candidatesList = `Enter votes for each candidate using abbreviation:\n\n`;
+              candidates.forEach((candidate, index) => {
+                candidatesList += `${candidate.abbreviation || candidate.name.substring(0, 3).toUpperCase()}: ${candidate.name}\n`;
+              });
+              candidatesList += `\nFormat: ABB=123,XYZ=456\nOr type SKIP to skip this category`;
+              
+              response = candidatesList;
+              await storage.updateUssdSession(sessionId, "submit_results_votes", {
+                ...sessionData,
+                category: selectedCategory,
+                candidates: candidates.map(c => ({
+                  id: c.id,
+                  name: c.name,
+                  abbreviation: c.abbreviation || c.name.substring(0, 3).toUpperCase()
+                }))
+              });
+            }
+          }
+          break;
+          
+        case "submit_results_votes":
+          const voteSessionData = session.sessionData as any;
+          
+          if (text.toUpperCase() === "SKIP") {
+            response = `Category skipped. Select another category:\n1. Presidential\n2. Member of Parliament\n3. Councilor\n0. Finish submission`;
+            await storage.updateUssdSession(sessionId, "submit_results_category", voteSessionData);
+          } else {
+            try {
+              // Parse vote input: ABB=123,XYZ=456
+              const voteEntries = text.split(',').map(entry => entry.trim());
+              const candidateVotes: any[] = [];
+              let totalVotes = 0;
+              
+              for (const entry of voteEntries) {
+                const [abbr, voteStr] = entry.split('=');
+                if (!abbr || !voteStr) continue;
+                
+                const votes = parseInt(voteStr.trim());
+                if (isNaN(votes) || votes < 0) continue;
+                
+                const candidate = voteSessionData.candidates.find((c: any) => 
+                  c.abbreviation.toLowerCase() === abbr.trim().toLowerCase()
+                );
+                
+                if (candidate) {
+                  candidateVotes.push({
+                    candidateId: candidate.id,
+                    candidateName: candidate.name,
+                    votes: votes
+                  });
+                  totalVotes += votes;
+                }
+              }
+              
+              if (candidateVotes.length === 0) {
+                response = `Invalid format. Use: ABB=123,XYZ=456\nTry again or type SKIP:`;
+              } else {
+                response = `Enter invalid votes (or 0):`;
+                await storage.updateUssdSession(sessionId, "submit_results_invalid", {
+                  ...voteSessionData,
+                  candidateVotes,
+                  totalVotes
+                });
+              }
+            } catch (error) {
+              response = `Invalid format. Use: ABB=123,XYZ=456\nTry again or type SKIP:`;
+            }
+          }
+          break;
+          
+        case "submit_results_invalid":
+          const invalidVotes = parseInt(text) || 0;
+          const finalSessionData = session.sessionData as any;
+          
+          try {
+            // Create results for each candidate
+            const results = [];
+            for (const candidateVote of finalSessionData.candidateVotes) {
+              const result = await storage.createResult({
+                userId: finalSessionData.userId,
+                pollingCenterId: finalSessionData.pollingCenterId,
+                candidateId: candidateVote.candidateId,
+                votes: candidateVote.votes,
+                invalidVotes: invalidVotes,
+                totalVotes: finalSessionData.totalVotes + invalidVotes,
+                submissionMethod: 'ussd',
+              });
+              results.push(result);
+            }
+            
+            response = `Results submitted successfully!\n\nCenter: ${finalSessionData.centerName}\nCategory: ${finalSessionData.category}\nTotal Valid: ${finalSessionData.totalVotes}\nInvalid: ${invalidVotes}\n\nSubmit another category?\n1. Presidential\n2. MP\n3. Councilor\n0. Exit`;
+            await storage.updateUssdSession(sessionId, "submit_results_category", {
+              pollingCenterId: finalSessionData.pollingCenterId,
+              centerCode: finalSessionData.centerCode,
+              centerName: finalSessionData.centerName,
+              userId: finalSessionData.userId
+            });
+          } catch (error) {
+            response = `Error submitting results. Please try again.\nEnter invalid votes (or 0):`;
+          }
+          break;
+          
+        case "check_status":
+          const statusCenterCode = text.toUpperCase();
+          const statusCenter = await storage.getPollingCenterByCode(statusCenterCode);
+          
+          if (!statusCenter) {
+            response = `Invalid polling center code. Please try again:`;
+          } else {
+            // Get results count for this center
+            const centerResults = await storage.getResultsByPollingCenter(statusCenter.id);
+            response = `${statusCenter.name}\nResults submitted: ${centerResults.length} categories\nStatus: ${centerResults.length > 0 ? 'Active' : 'No results yet'}`;
+            await storage.expireUssdSession(sessionId);
+          }
+          break;
+          
         default:
           response = `Welcome to PTC Election System\n1. Register as Agent\n2. Submit Results\n3. Check Status\n0. Exit`;
           await storage.updateUssdSession(sessionId, "main_menu", {});
@@ -1552,23 +1986,236 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { phoneNumber, text, sessionId } = req.body;
       
-      // Similar logic to Twilio but adapted for Africa's Talking format
+      // Get or create USSD session
       let session = await storage.getUssdSession(sessionId);
       if (!session) {
         session = await storage.createUssdSession(phoneNumber, sessionId, "main_menu");
       }
+      
+      // Check if phone number is authenticated for protected operations
+      const authenticatedUser = await storage.getUserByIdentifier(phoneNumber);
       
       let response = "";
       let continueSession = true;
       
       switch (session.currentStep) {
         case "main_menu":
-          response = `Welcome to PTC Election System\n1. Register as Agent\n2. Submit Results\n3. Check Status\n0. Exit`;
+          if (authenticatedUser?.isApproved) {
+            response = `Welcome ${authenticatedUser.firstName}!\n1. Register as Agent\n2. Submit Results\n3. Check Status\n0. Exit`;
+          } else {
+            response = `Welcome to PTC Election System\n1. Register as Agent\n3. Check Status\n0. Exit\n\n(Submit Results requires verified account)`;
+          }
+          await storage.updateUssdSession(sessionId, "menu_selection", {});
+          break;
+          
+        case "menu_selection":
+          if (text === "1") {
+            response = `Enter your first name:`;
+            await storage.updateUssdSession(sessionId, "register_firstname", {});
+          } else if (text === "2") {
+            if (!authenticatedUser?.isApproved) {
+              response = `You need a verified account to submit results. Please register first or contact admin.\n\n1. Register as Agent\n3. Check Status\n0. Exit`;
+              await storage.updateUssdSession(sessionId, "menu_selection", {});
+            } else {
+              response = `Enter polling center code:`;
+              await storage.updateUssdSession(sessionId, "submit_results_center", { userId: authenticatedUser.id });
+            }
+          } else if (text === "3") {
+            response = `Enter polling center code to check status:`;
+            await storage.updateUssdSession(sessionId, "check_status", {});
+          } else if (text === "0") {
+            response = `Thank you for using PTC System`;
+            await storage.expireUssdSession(sessionId);
+            continueSession = false;
+          } else {
+            response = `Invalid option. Please try again.\n1. Register as Agent\n${authenticatedUser?.isApproved ? '2. Submit Results\n' : ''}3. Check Status\n0. Exit`;
+          }
+          break;
+          
+        case "register_firstname":
+          const sessionData = { firstName: text };
+          response = `Enter your last name:`;
+          await storage.updateUssdSession(sessionId, "register_lastname", sessionData);
+          break;
+          
+        case "register_lastname":
+          const currentData = session.sessionData as any;
+          response = `Registration submitted for approval.\nName: ${currentData.firstName} ${text}\nPhone: ${phoneNumber}\nYou will be notified when approved.`;
+          
+          // Create pending user for admin approval
+          const hashedPassword = await hashPassword("temp123"); // Temporary password
+          await storage.createUser({
+            phone: phoneNumber,
+            firstName: currentData.firstName,
+            lastName: text,
+            passwordHash: hashedPassword,
+          });
+          
+          await storage.expireUssdSession(sessionId);
+          continueSession = false;
+          break;
+          
+        case "submit_results_center":
+          const centerCode = text.toUpperCase();
+          const pollingCenter = await storage.getPollingCenterByCode(centerCode);
+          
+          if (!pollingCenter) {
+            response = `Invalid polling center code. Please enter a valid code:`;
+          } else {
+            response = `Polling Center: ${pollingCenter.name}\nSelect category:\n1. Presidential\n2. Member of Parliament\n3. Councilor`;
+            await storage.updateUssdSession(sessionId, "submit_results_category", { 
+              ...session.sessionData, 
+              pollingCenterId: pollingCenter.id,
+              centerCode: pollingCenter.code,
+              centerName: pollingCenter.name
+            });
+          }
+          break;
+          
+        case "submit_results_category":
+          const categoryMap = { "1": "president", "2": "mp", "3": "councilor" };
+          const selectedCategory = categoryMap[text as "1" | "2" | "3"];
+          
+          if (!selectedCategory) {
+            response = `Invalid option. Select category:\n1. Presidential\n2. Member of Parliament\n3. Councilor`;
+          } else {
+            const sessionData = session.sessionData as any;
+            
+            // Get candidates for this category and constituency (if applicable)
+            let candidates;
+            if (selectedCategory === "president") {
+              candidates = await storage.getCandidatesByCategory("president");
+            } else {
+              // For MP/Councilor, filter by constituency
+              const center = await storage.getPollingCenter(sessionData.pollingCenterId);
+              candidates = await storage.getCandidatesByCategory(selectedCategory as "mp" | "councilor", center?.constituency);
+            }
+            
+            if (!candidates || candidates.length === 0) {
+              response = `No candidates found for this category. Returning to menu...`;
+              await storage.updateUssdSession(sessionId, "main_menu", {});
+            } else {
+              // Display candidates with abbreviations
+              let candidatesList = `Enter votes for each candidate using abbreviation:\n\n`;
+              candidates.forEach((candidate, index) => {
+                candidatesList += `${candidate.abbreviation || candidate.name.substring(0, 3).toUpperCase()}: ${candidate.name}\n`;
+              });
+              candidatesList += `\nFormat: ABB=123,XYZ=456\nOr type SKIP to skip this category`;
+              
+              response = candidatesList;
+              await storage.updateUssdSession(sessionId, "submit_results_votes", {
+                ...sessionData,
+                category: selectedCategory,
+                candidates: candidates.map(c => ({
+                  id: c.id,
+                  name: c.name,
+                  abbreviation: c.abbreviation || c.name.substring(0, 3).toUpperCase()
+                }))
+              });
+            }
+          }
+          break;
+          
+        case "submit_results_votes":
+          const voteSessionData = session.sessionData as any;
+          
+          if (text.toUpperCase() === "SKIP") {
+            response = `Category skipped. Select another category:\n1. Presidential\n2. Member of Parliament\n3. Councilor\n0. Finish submission`;
+            await storage.updateUssdSession(sessionId, "submit_results_category", voteSessionData);
+          } else {
+            try {
+              // Parse vote input: ABB=123,XYZ=456
+              const voteEntries = text.split(',').map(entry => entry.trim());
+              const candidateVotes: any[] = [];
+              let totalVotes = 0;
+              
+              for (const entry of voteEntries) {
+                const [abbr, voteStr] = entry.split('=');
+                if (!abbr || !voteStr) continue;
+                
+                const votes = parseInt(voteStr.trim());
+                if (isNaN(votes) || votes < 0) continue;
+                
+                const candidate = voteSessionData.candidates.find((c: any) => 
+                  c.abbreviation.toLowerCase() === abbr.trim().toLowerCase()
+                );
+                
+                if (candidate) {
+                  candidateVotes.push({
+                    candidateId: candidate.id,
+                    candidateName: candidate.name,
+                    votes: votes
+                  });
+                  totalVotes += votes;
+                }
+              }
+              
+              if (candidateVotes.length === 0) {
+                response = `Invalid format. Use: ABB=123,XYZ=456\nTry again or type SKIP:`;
+              } else {
+                response = `Enter invalid votes (or 0):`;
+                await storage.updateUssdSession(sessionId, "submit_results_invalid", {
+                  ...voteSessionData,
+                  candidateVotes,
+                  totalVotes
+                });
+              }
+            } catch (error) {
+              response = `Invalid format. Use: ABB=123,XYZ=456\nTry again or type SKIP:`;
+            }
+          }
+          break;
+          
+        case "submit_results_invalid":
+          const invalidVotes = parseInt(text) || 0;
+          const finalSessionData = session.sessionData as any;
+          
+          try {
+            // Create results for each candidate
+            const results = [];
+            for (const candidateVote of finalSessionData.candidateVotes) {
+              const result = await storage.createResult({
+                userId: finalSessionData.userId,
+                pollingCenterId: finalSessionData.pollingCenterId,
+                candidateId: candidateVote.candidateId,
+                votes: candidateVote.votes,
+                invalidVotes: invalidVotes,
+                totalVotes: finalSessionData.totalVotes + invalidVotes,
+                submissionMethod: 'ussd',
+              });
+              results.push(result);
+            }
+            
+            response = `Results submitted successfully!\n\nCenter: ${finalSessionData.centerName}\nCategory: ${finalSessionData.category}\nTotal Valid: ${finalSessionData.totalVotes}\nInvalid: ${invalidVotes}\n\nSubmit another category?\n1. Presidential\n2. MP\n3. Councilor\n0. Exit`;
+            await storage.updateUssdSession(sessionId, "submit_results_category", {
+              pollingCenterId: finalSessionData.pollingCenterId,
+              centerCode: finalSessionData.centerCode,
+              centerName: finalSessionData.centerName,
+              userId: finalSessionData.userId
+            });
+          } catch (error) {
+            response = `Error submitting results. Please try again.\nEnter invalid votes (or 0):`;
+          }
+          break;
+          
+        case "check_status":
+          const statusCenterCode = text.toUpperCase();
+          const statusCenter = await storage.getPollingCenterByCode(statusCenterCode);
+          
+          if (!statusCenter) {
+            response = `Invalid polling center code. Please try again:`;
+          } else {
+            // Get results count for this center
+            const centerResults = await storage.getResultsByPollingCenter(statusCenter.id);
+            response = `${statusCenter.name}\nResults submitted: ${centerResults.length} categories\nStatus: ${centerResults.length > 0 ? 'Active' : 'No results yet'}`;
+            await storage.expireUssdSession(sessionId);
+            continueSession = false;
+          }
           break;
           
         default:
-          response = `Welcome to PTC Election System\n1. Register as Agent\n2. Submit Results\n3. Check Status\n0. Exit`;
-          await storage.updateUssdSession(sessionId, "main_menu", {});
+          response = `Welcome to PTC Election System\n1. Register as Agent\n${authenticatedUser?.isApproved ? '2. Submit Results\n' : ''}3. Check Status\n0. Exit`;
+          await storage.updateUssdSession(sessionId, "menu_selection", {});
       }
       
       // Africa's Talking expects CON for continue, END for terminate

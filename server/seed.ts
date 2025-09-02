@@ -85,6 +85,7 @@ export async function seedDatabase() {
       // Create presidential candidates
       await storage.createCandidate({
         name: "John Presidential",
+        abbreviation: "JP",
         party: "Democratic Progressive Party (DPP)",
         partyId: dppParty?.id,
         category: "president",
@@ -92,6 +93,7 @@ export async function seedDatabase() {
 
       await storage.createCandidate({
         name: "Mary National", 
+        abbreviation: "MN",
         party: "People's Liberation Party (PLP)",
         partyId: plpParty?.id,
         category: "president",
@@ -99,6 +101,7 @@ export async function seedDatabase() {
 
       await storage.createCandidate({
         name: "Samuel Unity",
+        abbreviation: "SU",
         party: "Unity Development Alliance (UDA)",
         partyId: udaParty?.id, 
         category: "president",
@@ -107,6 +110,7 @@ export async function seedDatabase() {
       // Create MP candidates
       await storage.createCandidate({
         name: "David Mchazime",
+        abbreviation: "DM",
         party: "Malawi Congress Party (MCP)",
         partyId: mcpParty?.id,
         category: "mp",
@@ -115,6 +119,7 @@ export async function seedDatabase() {
 
       await storage.createCandidate({
         name: "Sarah Banda",
+        abbreviation: "SB",
         party: "Democratic Progressive Party (DPP)",
         partyId: dppParty?.id,
         category: "mp",
@@ -123,6 +128,7 @@ export async function seedDatabase() {
 
       await storage.createCandidate({
         name: "Michael Phiri",
+        abbreviation: "MP",
         party: "United Democratic Front (UDF)",
         partyId: udfParty?.id,
         category: "mp",
@@ -132,6 +138,7 @@ export async function seedDatabase() {
       // Create Councilor candidates
       await storage.createCandidate({
         name: "Grace Mwale",
+        abbreviation: "GM",
         party: "Malawi Congress Party (MCP)",
         partyId: mcpParty?.id, 
         category: "councilor",
@@ -140,6 +147,7 @@ export async function seedDatabase() {
 
       await storage.createCandidate({
         name: "Peter Kachali",
+        abbreviation: "PK",
         party: "Democratic Progressive Party (DPP)",
         partyId: dppParty?.id,
         category: "councilor",
@@ -148,6 +156,7 @@ export async function seedDatabase() {
 
       await storage.createCandidate({
         name: "Ruth Ngwira",
+        abbreviation: "RN",
         party: "United Democratic Front (UDF)",
         partyId: udfParty?.id,
         category: "councilor", 
