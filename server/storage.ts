@@ -280,6 +280,10 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(politicalParties).where(eq(politicalParties.isActive, true)).orderBy(politicalParties.name);
   }
 
+  async getAllPoliticalParties(): Promise<PoliticalParty[]> {
+    return await db.select().from(politicalParties).orderBy(politicalParties.name);
+  }
+
   async getPoliticalPartyByName(name: string): Promise<PoliticalParty | undefined> {
     const [party] = await db.select().from(politicalParties).where(eq(politicalParties.name, name));
     return party;

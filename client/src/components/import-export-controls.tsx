@@ -388,7 +388,7 @@ export function ImportExportControls() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <h4 className="font-medium text-sm">Constituencies</h4>
               <p className="text-xs text-muted-foreground">
@@ -407,23 +407,6 @@ export function ImportExportControls() {
               </Button>
             </div>
             
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm">Polling Centers</h4>
-              <p className="text-xs text-muted-foreground">
-                Polling center locations and details
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleTemplateDownload('polling-centers')}
-                disabled={importing || exporting}
-                data-testid="button-download-template-polling-centers"
-                className="w-full"
-              >
-                <Download className="h-4 w-4 mr-1" />
-                Download Template
-              </Button>
-            </div>
             
             <div className="space-y-2">
               <h4 className="font-medium text-sm">Candidates</h4>
@@ -517,7 +500,7 @@ export function ImportExportControls() {
           {selectedFile && selectedSheet && (
             <div className="flex gap-2">
               <Button
-                onClick={handleImport}
+                onClick={() => handleImport()}
                 disabled={importing || !selectedSheet}
                 className="flex-1"
                 data-testid="button-import"

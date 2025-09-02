@@ -228,99 +228,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk upload endpoints
-  app.post('/api/admin/bulk-upload/polling-centers', isAuthenticated, upload.single('file'), async (req: any, res) => {
-    try {
-      const currentUser = req.user;
-      if (currentUser?.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-
-      const csvData = fs.readFileSync(req.file.path, 'utf8');
-      const lines = csvData.split('\n').filter(line => line.trim());
-      
-      if (lines.length < 2) {
-        return res.status(400).json({ message: "CSV file must have header and at least one data row" });
-      }
-
-      const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
-      const requiredHeaders = ['code', 'name', 'constituency', 'district', 'state', 'registeredvoters'];
-      
-      const missingHeaders = requiredHeaders.filter(header => !headers.includes(header));
-      if (missingHeaders.length > 0) {
-        return res.status(400).json({ 
-          message: `Missing required headers: ${missingHeaders.join(', ')}. Required headers: ${requiredHeaders.join(', ')}` 
-        });
-      }
-
-      const results = { created: 0, errors: [] as any[] };
-      
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
-        if (values.length !== headers.length) continue;
-        
-        try {
-          const centerData: any = {};
-          headers.forEach((header, index) => {
-            centerData[header] = values[index];
-          });
-
-          // Validate required fields
-          if (!centerData.code || !centerData.name || !centerData.constituency || 
-              !centerData.district || !centerData.state || !centerData.registeredvoters) {
-            results.errors.push({ row: i + 1, error: "Missing required fields", data: centerData });
-            continue;
-          }
-
-          // Check if polling center already exists
-          const existingCenter = await storage.getPollingCenterByCode(centerData.code);
-          if (existingCenter) {
-            results.errors.push({ row: i + 1, error: `Polling center with code ${centerData.code} already exists`, data: centerData });
-            continue;
-          }
-
-          // Create polling center
-          await storage.createPollingCenter({
-            code: centerData.code,
-            name: centerData.name,
-            constituency: centerData.constituency,
-            district: centerData.district,
-            state: centerData.state,
-            registeredVoters: parseInt(centerData.registeredvoters) || 0,
-          });
-
-          results.created++;
-        } catch (error: any) {
-          results.errors.push({ row: i + 1, error: error.message, data: values });
-        }
-      }
-
-      // Clean up uploaded file
-      fs.unlinkSync(req.file.path);
-
-      // Log audit
-      await storage.createAuditLog({
-        userId: currentUser.id,
-        action: "BULK_UPLOAD",
-        entityType: "polling_center",
-        entityId: "bulk",
-        newValues: { created: results.created, errors: results.errors.length },
-        ipAddress: req.ip,
-        userAgent: req.get("User-Agent"),
-      });
-
-      res.json(results);
-    } catch (error: any) {
-      console.error("Error processing bulk upload:", error);
-      if (req.file) {
-        fs.unlinkSync(req.file.path);
-      }
-      res.status(500).json({ message: error.message || "Failed to process bulk upload" });
-    }
-  });
 
   app.post('/api/admin/bulk-upload/candidates', isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
@@ -830,7 +737,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Political parties routes
   app.get("/api/political-parties", isAuthenticated, async (req, res) => {
     try {
-      const parties = await storage.getPoliticalParties();
+      const parties = await storage.getAllPoliticalParties();
       res.json(parties);
     } catch (error) {
       console.error("Error fetching political parties:", error);
