@@ -6,6 +6,7 @@ import path from "path";
 import fs from "fs";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
+import importExportRoutes from "./routes/importExport";
 import { setupAuth, isAuthenticated, hashPassword, validateRegister, validateLogin } from "./auth";
 import passport from "passport";
 import { insertResultSchema, insertPollingCenterSchema, insertCandidateSchema, insertPoliticalPartySchema } from "@shared/schema";
@@ -421,6 +422,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fs.unlinkSync(req.file.path);
       }
       res.status(500).json({ message: error.message || "Failed to process bulk upload" });
+    }
+  });
+
+  // Import/Export routes
+  app.use('/api', importExportRoutes);
+
+  // Get hierarchical constituencies data
+  app.get('/api/constituencies/hierarchy', isAuthenticated, async (req, res) => {
+    try {
+      const constituencies = await storage.getAllConstituenciesWithHierarchy();
+      res.json(constituencies);
+    } catch (error) {
+      console.error('Error fetching constituencies hierarchy:', error);
+      res.status(500).json({ error: 'Failed to fetch constituencies hierarchy' });
     }
   });
 

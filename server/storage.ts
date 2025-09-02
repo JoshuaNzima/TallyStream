@@ -1,6 +1,9 @@
 import {
   users,
   pollingCenters,
+  constituencies,
+  wards,
+  centres,
   candidates,
   results,
   resultFiles,
@@ -12,6 +15,12 @@ import {
   type UpsertUser,
   type PollingCenter,
   type InsertPollingCenter,
+  type Constituency,
+  type InsertConstituency,
+  type Ward,
+  type InsertWard,
+  type Centre,
+  type InsertCentre,
   type PoliticalParty,
   type InsertPoliticalParty,
   type Candidate,
@@ -41,6 +50,12 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   updateUserRole(userId: string, role: UserRole): Promise<User>;
   updateLastLogin(userId: string): Promise<void>;
+  
+  // Hierarchical location operations
+  getAllConstituenciesWithHierarchy(): Promise<(Constituency & { wards: (Ward & { centres: Centre[] })[] })[]>;
+  upsertConstituency(constituency: InsertConstituency): Promise<Constituency>;
+  upsertWard(ward: InsertWard): Promise<Ward>;
+  upsertCentre(centre: InsertCentre): Promise<Centre>;
   
   // Polling center operations
   getPollingCenters(page?: number, limit?: number): Promise<{ data: PollingCenter[]; total: number; }>;
@@ -75,6 +90,7 @@ export interface IStorage {
   
   // Result operations
   getResults(): Promise<ResultWithRelations[]>;
+  getAllResultsWithDetails(): Promise<ResultWithRelations[]>;
   getResult(id: string): Promise<Result | undefined>;
   getResultsByStatus(status: ResultStatus): Promise<ResultWithRelations[]>;
   getResultsByPollingCenter(pollingCenterId: string): Promise<ResultWithRelations[]>;
@@ -82,7 +98,7 @@ export interface IStorage {
   updateResultStatus(resultId: string, status: ResultStatus, verifiedBy?: string, flaggedReason?: string): Promise<Result>;
   flagForDocumentMismatch(resultId: string, reason: string): Promise<Result>;
   updateResult(resultId: string, updates: Partial<InsertResult>): Promise<Result>;
-  updateUser(userId: string, updates: Partial<InsertUser>): Promise<User>;
+  updateUser(userId: string, updates: Partial<UpsertUser>): Promise<User>;
   getUserById(userId: string): Promise<User | undefined>;
   
   // Result file operations
@@ -549,7 +565,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateUser(userId: string, updates: Partial<InsertUser>): Promise<User> {
+  async updateUser(userId: string, updates: Partial<UpsertUser>): Promise<User> {
     const [updatedUser] = await db
       .update(users)
       .set({ 
@@ -1116,6 +1132,83 @@ export class DatabaseStorage implements IStorage {
       .where(eq(ussdProviders.id, id))
       .returning();
     return provider;
+  }
+
+  // Hierarchical location operations
+  async getAllConstituenciesWithHierarchy(): Promise<(Constituency & { wards: (Ward & { centres: Centre[] })[] })[]> {
+    const constituencyData = await db.select().from(constituencies).where(eq(constituencies.isActive, true));
+    const wardData = await db.select().from(wards).where(eq(wards.isActive, true));
+    const centreData = await db.select().from(centres).where(eq(centres.isActive, true));
+
+    return constituencyData.map(constituency => ({
+      ...constituency,
+      wards: wardData
+        .filter(ward => ward.constituencyId === constituency.id)
+        .map(ward => ({
+          ...ward,
+          centres: centreData.filter(centre => centre.wardId === ward.id)
+        }))
+    }));
+  }
+
+  async upsertConstituency(constituency: InsertConstituency): Promise<Constituency> {
+    const [existing] = await db.select().from(constituencies).where(eq(constituencies.id, constituency.id));
+    
+    if (existing) {
+      const [updated] = await db
+        .update(constituencies)
+        .set({ ...constituency, updatedAt: new Date() })
+        .where(eq(constituencies.id, constituency.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(constituencies).values(constituency).returning();
+      return created;
+    }
+  }
+
+  async upsertWard(ward: InsertWard): Promise<Ward> {
+    const [existing] = await db.select().from(wards).where(eq(wards.id, ward.id));
+    
+    if (existing) {
+      const [updated] = await db
+        .update(wards)
+        .set({ ...ward, updatedAt: new Date() })
+        .where(eq(wards.id, ward.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(wards).values(ward).returning();
+      return created;
+    }
+  }
+
+  async upsertCentre(centre: InsertCentre): Promise<Centre> {
+    const [existing] = await db.select().from(centres).where(eq(centres.id, centre.id));
+    
+    if (existing) {
+      const [updated] = await db
+        .update(centres)
+        .set({ ...centre, updatedAt: new Date() })
+        .where(eq(centres.id, centre.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(centres).values(centre).returning();
+      return created;
+    }
+  }
+
+  // Enhanced result operations
+  async getAllResultsWithDetails(): Promise<ResultWithRelations[]> {
+    return await db.query.results.findMany({
+      with: {
+        pollingCenter: true,
+        submitter: true,
+        verifier: true,
+        files: true
+      }
+    });
   }
 }
 

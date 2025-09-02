@@ -64,7 +64,44 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Polling centers table
+// Constituencies table
+export const constituencies = pgTable("constituencies", {
+  id: varchar("id").primaryKey(), // e.g., "107"
+  name: varchar("name").notNull(), // e.g., "LILONGWE CITY"
+  code: varchar("code").unique().notNull(),
+  district: varchar("district").notNull(),
+  state: varchar("state").notNull(),
+  totalVoters: integer("total_voters").default(0).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Wards table
+export const wards = pgTable("wards", {
+  id: varchar("id").primaryKey(), // e.g., "10701"
+  constituencyId: varchar("constituency_id").references(() => constituencies.id).notNull(),
+  name: varchar("name").notNull(), // e.g., "MTANDIRE"
+  code: varchar("code").unique().notNull(),
+  totalVoters: integer("total_voters").default(0).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Centres table
+export const centres = pgTable("centres", {
+  id: varchar("id").primaryKey(), // e.g., "1070101"
+  wardId: varchar("ward_id").references(() => wards.id).notNull(),
+  name: varchar("name").notNull(), // e.g., "KANKODOLA L.E.A. SCHOOL"
+  code: varchar("code").unique().notNull(),
+  registeredVoters: integer("registered_voters").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Polling centers table (legacy - keeping for backward compatibility)
 export const pollingCenters = pgTable("polling_centers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   code: varchar("code").unique().notNull(),
@@ -73,6 +110,7 @@ export const pollingCenters = pgTable("polling_centers", {
   district: varchar("district").notNull(),
   state: varchar("state").notNull(),
   registeredVoters: integer("registered_voters").notNull(),
+  centreId: varchar("centre_id").references(() => centres.id), // Link to new structure
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -165,7 +203,32 @@ export const usersRelations = relations(users, ({ many }) => ({
   auditLogs: many(auditLogs),
 }));
 
-export const pollingCentersRelations = relations(pollingCenters, ({ many }) => ({
+// New hierarchical relations
+export const constituenciesRelations = relations(constituencies, ({ many }) => ({
+  wards: many(wards),
+}));
+
+export const wardsRelations = relations(wards, ({ one, many }) => ({
+  constituency: one(constituencies, {
+    fields: [wards.constituencyId],
+    references: [constituencies.id],
+  }),
+  centres: many(centres),
+}));
+
+export const centresRelations = relations(centres, ({ one, many }) => ({
+  ward: one(wards, {
+    fields: [centres.wardId],
+    references: [wards.id],
+  }),
+  pollingCenters: many(pollingCenters),
+}));
+
+export const pollingCentersRelations = relations(pollingCenters, ({ one, many }) => ({
+  centre: one(centres, {
+    fields: [pollingCenters.centreId],
+    references: [centres.id],
+  }),
   results: many(results),
 }));
 
@@ -247,6 +310,21 @@ export const upsertUserSchema = createInsertSchema(users).omit({
   updatedAt: true,
 });
 
+export const insertConstituencySchema = createInsertSchema(constituencies).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWardSchema = createInsertSchema(wards).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCentreSchema = createInsertSchema(centres).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertPollingCenterSchema = createInsertSchema(pollingCenters).omit({
   id: true,
   createdAt: true,
@@ -304,6 +382,12 @@ export const ussdProviders = pgTable("ussd_providers", {
 export type User = typeof users.$inferSelect;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type Constituency = typeof constituencies.$inferSelect;
+export type InsertConstituency = z.infer<typeof insertConstituencySchema>;
+export type Ward = typeof wards.$inferSelect;
+export type InsertWard = z.infer<typeof insertWardSchema>;
+export type Centre = typeof centres.$inferSelect;
+export type InsertCentre = z.infer<typeof insertCentreSchema>;
 export type PollingCenter = typeof pollingCenters.$inferSelect;
 export type InsertPollingCenter = z.infer<typeof insertPollingCenterSchema>;
 export type PoliticalParty = typeof politicalParties.$inferSelect;

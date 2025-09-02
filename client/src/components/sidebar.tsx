@@ -10,7 +10,8 @@ import {
   Settings,
   User,
   AlertTriangle,
-  Shield
+  Shield,
+  Database
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -22,6 +23,7 @@ const navigation = [
   { name: "Reports", href: "/reports", icon: FileText, roles: ["supervisor", "admin", "reviewer"] },
   { name: "User Management", href: "/user-management", icon: Users, roles: ["admin"] },
   { name: "Political Parties", href: "/political-parties", icon: Shield, roles: ["admin", "supervisor"] },
+  { name: "Data Management", href: "/data-management", icon: Database, roles: ["admin"] },
   { name: "Admin Management", href: "/admin-management", icon: Settings, roles: ["admin"] },
   { name: "Audit Trail", href: "/audit-trail", icon: History, roles: ["supervisor", "admin", "reviewer"] },
   { name: "Profile", href: "/profile", icon: User, roles: ["agent", "supervisor", "admin", "reviewer"] },
