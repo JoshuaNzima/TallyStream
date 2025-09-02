@@ -76,22 +76,32 @@ export class ExcelImporter {
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       try {
-        const constituencyId = this.cleanString(row.Constituency || row.constituency);
+        const constituencyRaw = this.cleanString(row.Constituency || row.constituency);
         const constituencyName = this.cleanString(row.ConstituencyName || row['Constituency Name'] || row.constituency_name);
-        const wardId = this.cleanString(row.Ward || row.ward);
+        const wardRaw = this.cleanString(row.Ward || row.ward);
         const wardName = this.cleanString(row.WardName || row['Ward Name'] || row.ward_name);
-        const centreId = this.cleanString(row.Centre || row.centre || row.Center || row.center);
+        const centreRaw = this.cleanString(row.Centre || row.centre || row.Center || row.center);
         const centreName = this.cleanString(row.CentreName || row['Centre Name'] || row.centre_name || row.CenterName || row['Center Name'] || row.center_name);
         const voters = parseInt(row.Voters || row.voters || '0');
 
-        if (!constituencyId || !wardId || !centreId || !centreName) {
-          errors.push(`Row ${i + 2}: Missing required fields (Constituency, Ward, Centre, Centre Name)`);
+        if (!constituencyRaw || !wardRaw || !centreRaw) {
+          errors.push(`Row ${i + 2}: Missing required fields (Constituency, Ward, Centre)`);
           continue;
         }
 
-        // Extract names from the format "107 - LILONGWE CITY"
-        const constName = constituencyName || this.extractName(constituencyId);
-        const wrdName = wardName || this.extractName(wardId);
+        // Extract IDs and names from the format "107 - LILONGWE CITY"
+        const constituencyId = this.extractId(constituencyRaw);
+        const wardId = this.extractId(wardRaw);
+        const centreId = this.extractId(centreRaw);
+        
+        const constName = constituencyName || this.extractName(constituencyRaw);
+        const wrdName = wardName || this.extractName(wardRaw);
+        const centreFinalName = centreName || this.extractName(centreRaw);
+
+        if (!constituencyId || !wardId || !centreId || !centreFinalName) {
+          errors.push(`Row ${i + 2}: Invalid format. Use "ID - NAME" format (e.g., "107 - LILONGWE CITY")`);
+          continue;
+        }
 
         if (!constituencyMap.has(constituencyId)) {
           constituencyMap.set(constituencyId, { 
@@ -110,7 +120,7 @@ export class ExcelImporter {
 
         constituency.wards.get(wardId)!.centres.push({
           id: centreId,
-          name: centreName,
+          name: centreFinalName,
           voters: voters || 0
         });
 
@@ -200,6 +210,12 @@ export class ExcelImporter {
   private cleanString(value: any): string {
     if (typeof value !== 'string') return String(value || '').trim();
     return value.trim();
+  }
+
+  private extractId(idWithName: string): string {
+    // Extract ID from format like "107 - LILONGWE CITY" -> "107"
+    const parts = idWithName.split(' - ');
+    return parts.length > 0 ? parts[0].trim() : idWithName.trim();
   }
 
   private extractName(idWithName: string): string {
