@@ -12,6 +12,27 @@ export interface ImportRow {
   voters?: number;
 }
 
+export interface DuplicateItem {
+  id: string;
+  type: 'constituency' | 'ward' | 'centre';
+  existing: any;
+  incoming: any;
+  isIdentical: boolean;
+  parentId?: string; // for wards/centres
+}
+
+export interface ImportResult {
+  success: number;
+  errors: string[];
+  duplicates?: DuplicateItem[];
+  requiresUserAction?: boolean;
+}
+
+export interface ImportOptions {
+  handleDuplicates?: 'prompt' | 'update' | 'skip' | 'merge';
+  duplicateResolutions?: { [id: string]: 'update' | 'skip' };
+}
+
 export class ExcelImporter {
   constructor(private storage: DatabaseStorage) {}
 
@@ -29,7 +50,7 @@ export class ExcelImporter {
   }
 
   // Import from a specific sheet
-  async importFromBuffer(buffer: Buffer, sheetName?: string): Promise<{ success: number; errors: string[] }> {
+  async importFromBuffer(buffer: Buffer, sheetName?: string, options: ImportOptions = {}): Promise<ImportResult> {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     
     // Use specified sheet or default to first sheet
@@ -47,6 +68,7 @@ export class ExcelImporter {
 
     const errors: string[] = [];
     let success = 0;
+    const duplicates: DuplicateItem[] = [];
 
     // Group data by constituency and ward
     const constituencyMap = new Map<string, { name: string; wards: Map<string, { name: string; centres: Array<{ id: string; name: string; voters: number }> }> }>();
@@ -97,9 +119,29 @@ export class ExcelImporter {
       }
     }
 
+    // Check for duplicates if not in batch mode
+    if (options.handleDuplicates !== 'update' && options.handleDuplicates !== 'merge') {
+      await this.detectDuplicates(constituencyMap, duplicates);
+      
+      if (duplicates.length > 0 && !options.duplicateResolutions) {
+        return {
+          success: 0,
+          errors,
+          duplicates,
+          requiresUserAction: true
+        };
+      }
+    }
+
     // Import data in hierarchical order
     for (const [constituencyId, constituency] of Array.from(constituencyMap.entries())) {
       try {
+        // Handle constituency duplicates
+        const constDuplicate = duplicates.find(d => d.id === constituencyId && d.type === 'constituency');
+        if (constDuplicate && this.shouldSkip(constDuplicate, options)) {
+          continue;
+        }
+
         // Create constituency
         await this.storage.upsertConstituency({
           id: constituencyId,
@@ -110,6 +152,12 @@ export class ExcelImporter {
         });
 
         for (const [wardId, ward] of Array.from(constituency.wards.entries())) {
+          // Handle ward duplicates
+          const wardDuplicate = duplicates.find(d => d.id === wardId && d.type === 'ward');
+          if (wardDuplicate && this.shouldSkip(wardDuplicate, options)) {
+            continue;
+          }
+
           // Create ward
           await this.storage.upsertWard({
             id: wardId,
@@ -119,6 +167,12 @@ export class ExcelImporter {
           });
 
           for (const centre of ward.centres) {
+            // Handle centre duplicates
+            const centreDuplicate = duplicates.find(d => d.id === centre.id && d.type === 'centre');
+            if (centreDuplicate && this.shouldSkip(centreDuplicate, options)) {
+              continue;
+            }
+
             // Create centre
             await this.storage.upsertCentre({
               id: centre.id,
@@ -135,7 +189,12 @@ export class ExcelImporter {
       }
     }
 
-    return { success, errors };
+    return { 
+      success, 
+      errors, 
+      duplicates: duplicates.length > 0 ? duplicates : undefined,
+      requiresUserAction: false 
+    };
   }
 
   private cleanString(value: any): string {
@@ -147,5 +206,127 @@ export class ExcelImporter {
     // Extract name from format like "107 - LILONGWE CITY" -> "LILONGWE CITY"
     const parts = idWithName.split(' - ');
     return parts.length > 1 ? parts.slice(1).join(' - ') : idWithName;
+  }
+
+  // Detect duplicates by checking existing data in the database
+  private async detectDuplicates(
+    constituencyMap: Map<string, { name: string; wards: Map<string, { name: string; centres: Array<{ id: string; name: string; voters: number }> }> }>,
+    duplicates: DuplicateItem[]
+  ): Promise<void> {
+    for (const [constituencyId, constituency] of Array.from(constituencyMap.entries())) {
+      // Check constituency duplicates
+      const existingConstituency = await this.storage.getConstituency(constituencyId);
+      if (existingConstituency) {
+        const incoming = {
+          id: constituencyId,
+          name: constituency.name,
+          code: constituencyId,
+          district: 'Unknown',
+          state: 'Unknown'
+        };
+        
+        const isIdentical = this.compareConstituencyData(existingConstituency, incoming);
+        
+        duplicates.push({
+          id: constituencyId,
+          type: 'constituency',
+          existing: existingConstituency,
+          incoming,
+          isIdentical
+        });
+      }
+
+      // Check ward duplicates
+      for (const [wardId, ward] of Array.from(constituency.wards.entries())) {
+        const existingWard = await this.storage.getWard(wardId);
+        if (existingWard) {
+          const incoming = {
+            id: wardId,
+            constituencyId: constituencyId,
+            name: ward.name,
+            code: wardId
+          };
+          
+          const isIdentical = this.compareWardData(existingWard, incoming);
+          
+          duplicates.push({
+            id: wardId,
+            type: 'ward',
+            existing: existingWard,
+            incoming,
+            isIdentical,
+            parentId: constituencyId
+          });
+        }
+
+        // Check centre duplicates
+        for (const centre of ward.centres) {
+          const existingCentre = await this.storage.getCentre(centre.id);
+          if (existingCentre) {
+            const incoming = {
+              id: centre.id,
+              wardId: wardId,
+              name: centre.name,
+              code: centre.id,
+              registeredVoters: centre.voters
+            };
+            
+            const isIdentical = this.compareCentreData(existingCentre, incoming);
+            
+            duplicates.push({
+              id: centre.id,
+              type: 'centre',
+              existing: existingCentre,
+              incoming,
+              isIdentical,
+              parentId: wardId
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Determine if a duplicate should be skipped based on options
+  private shouldSkip(duplicate: DuplicateItem, options: ImportOptions): boolean {
+    // If it's identical data, always auto-merge (don't skip, let upsert handle it)
+    if (duplicate.isIdentical) {
+      return false;
+    }
+
+    // Check user resolutions
+    if (options.duplicateResolutions && options.duplicateResolutions[duplicate.id]) {
+      return options.duplicateResolutions[duplicate.id] === 'skip';
+    }
+
+    // Check global options
+    if (options.handleDuplicates === 'skip') {
+      return true;
+    }
+
+    return false;
+  }
+
+  // Compare constituency data for changes
+  private compareConstituencyData(existing: any, incoming: any): boolean {
+    return existing.name === incoming.name &&
+           existing.code === incoming.code &&
+           existing.district === incoming.district &&
+           existing.state === incoming.state;
+  }
+
+  // Compare ward data for changes
+  private compareWardData(existing: any, incoming: any): boolean {
+    return existing.name === incoming.name &&
+           existing.code === incoming.code &&
+           existing.constituencyId === incoming.constituencyId;
+  }
+
+  // Compare centre data for changes
+  private compareCentreData(existing: any, incoming: any): boolean {
+    return existing.name === incoming.name &&
+           existing.code === incoming.code &&
+           existing.wardId === incoming.wardId &&
+           existing.registeredVoters === incoming.registeredVoters;
   }
 }

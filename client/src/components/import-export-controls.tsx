@@ -4,14 +4,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Download, FileSpreadsheet, FileText, Sheet } from 'lucide-react';
+import { Upload, Download, FileSpreadsheet, FileText, Sheet, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface SheetInfo {
   name: string;
   rowCount: number;
 }
+
+interface DuplicateItem {
+  id: string;
+  type: 'constituency' | 'ward' | 'centre';
+  existing: any;
+  incoming: any;
+  isIdentical: boolean;
+  parentId?: string;
+}
+
+type DuplicateResolution = 'update' | 'skip';
 
 export function ImportExportControls() {
   const [importing, setImporting] = useState(false);
@@ -20,6 +34,9 @@ export function ImportExportControls() {
   const [availableSheets, setAvailableSheets] = useState<SheetInfo[]>([]);
   const [selectedSheet, setSelectedSheet] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [duplicates, setDuplicates] = useState<DuplicateItem[]>([]);
+  const [showDuplicates, setShowDuplicates] = useState(false);
+  const [duplicateResolutions, setDuplicateResolutions] = useState<{ [id: string]: DuplicateResolution }>({});
   const { toast } = useToast();
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,7 +105,7 @@ export function ImportExportControls() {
     }
   };
 
-  const handleImport = async () => {
+  const handleImport = async (resolutions?: { [id: string]: DuplicateResolution }) => {
     if (!selectedFile || !selectedSheet) {
       toast({
         title: "Missing selection",
@@ -102,6 +119,11 @@ export function ImportExportControls() {
     const formData = new FormData();
     formData.append('file', selectedFile);
     formData.append('sheetName', selectedSheet);
+    
+    if (resolutions) {
+      formData.append('handleDuplicates', 'resolve');
+      formData.append('duplicateResolutions', JSON.stringify(resolutions));
+    }
 
     try {
       const response = await fetch('/api/import/constituencies', {
@@ -112,24 +134,42 @@ export function ImportExportControls() {
       const result = await response.json();
 
       if (response.ok) {
-        toast({
-          title: "Import successful",
-          description: `Imported ${result.success} items from sheet "${selectedSheet}". ${result.errors.length} errors.`,
-        });
+        if (result.requiresUserAction) {
+          // Show duplicates for user review
+          setDuplicates(result.duplicates || []);
+          setShowDuplicates(true);
+          
+          // Initialize resolutions for non-identical duplicates
+          const initialResolutions: { [id: string]: DuplicateResolution } = {};
+          result.duplicates?.forEach((dup: DuplicateItem) => {
+            if (!dup.isIdentical) {
+              initialResolutions[dup.id] = 'update'; // Default to update
+            }
+          });
+          setDuplicateResolutions(initialResolutions);
+          
+          toast({
+            title: "Duplicates detected",
+            description: `Found ${result.duplicates?.length || 0} duplicates. Please review and decide how to handle them.`,
+            variant: "default",
+          });
+        } else {
+          // Normal completion
+          const identicalCount = result.duplicates?.filter((d: DuplicateItem) => d.isIdentical).length || 0;
+          
+          toast({
+            title: "Import successful",
+            description: `Imported ${result.success} items from sheet "${selectedSheet}". ${identicalCount > 0 ? `${identicalCount} identical items auto-merged. ` : ''}${result.errors?.length || 0} errors.`,
+          });
 
-        // Show errors if any
-        if (result.errors.length > 0) {
-          console.log('Import errors:', result.errors);
+          // Show errors if any
+          if (result.errors && result.errors.length > 0) {
+            console.log('Import errors:', result.errors);
+          }
+
+          // Reset state after successful import
+          resetImportState();
         }
-
-        // Reset state after successful import
-        setSelectedFile(null);
-        setAvailableSheets([]);
-        setSelectedSheet('');
-        
-        // Clear the file input
-        const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
       } else {
         toast({
           title: "Import failed",
@@ -154,6 +194,68 @@ export function ImportExportControls() {
     setSelectedSheet('');
     const fileInput = document.getElementById('file-upload') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
+  };
+
+  const resetImportState = () => {
+    setSelectedFile(null);
+    setAvailableSheets([]);
+    setSelectedSheet('');
+    setDuplicates([]);
+    setShowDuplicates(false);
+    setDuplicateResolutions({});
+    
+    // Clear the file input
+    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
+  const handleDuplicateResolution = (id: string, resolution: DuplicateResolution) => {
+    setDuplicateResolutions(prev => ({
+      ...prev,
+      [id]: resolution
+    }));
+  };
+
+  const handleBulkResolution = (resolution: DuplicateResolution) => {
+    const newResolutions: { [id: string]: DuplicateResolution } = {};
+    duplicates.forEach(dup => {
+      if (!dup.isIdentical) {
+        newResolutions[dup.id] = resolution;
+      }
+    });
+    setDuplicateResolutions(newResolutions);
+  };
+
+  const proceedWithImport = () => {
+    setShowDuplicates(false);
+    handleImport(duplicateResolutions);
+  };
+
+  const formatDataForDisplay = (data: any, type: string) => {
+    switch (type) {
+      case 'constituency':
+        return {
+          'Name': data.name,
+          'Code': data.code,
+          'District': data.district,
+          'State': data.state
+        };
+      case 'ward':
+        return {
+          'Name': data.name,
+          'Code': data.code,
+          'Constituency': data.constituencyId
+        };
+      case 'centre':
+        return {
+          'Name': data.name,
+          'Code': data.code,
+          'Ward': data.wardId,
+          'Registered Voters': data.registeredVoters
+        };
+      default:
+        return data;
+    }
   };
 
   const handleTemplateDownload = async (type: 'constituencies' | 'polling-centers' | 'candidates') => {
@@ -542,6 +644,153 @@ export function ImportExportControls() {
         </CardContent>
       </Card>
       </div>
+
+      {/* Duplicate Resolution Dialog */}
+      <Dialog open={showDuplicates} onOpenChange={setShowDuplicates}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Duplicates Detected
+            </DialogTitle>
+            <DialogDescription>
+              Found {duplicates.length} existing records. Choose how to handle each one:
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Summary */}
+            <div className="flex gap-2 text-sm">
+              <Badge variant="secondary">
+                {duplicates.filter(d => d.isIdentical).length} identical (auto-merged)
+              </Badge>
+              <Badge variant="outline">
+                {duplicates.filter(d => !d.isIdentical).length} different (need review)
+              </Badge>
+            </div>
+
+            {/* Bulk Actions */}
+            {duplicates.some(d => !d.isIdentical) && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkResolution('update')}
+                >
+                  Update All Different
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkResolution('skip')}
+                >
+                  Skip All Different
+                </Button>
+              </div>
+            )}
+
+            {/* Duplicates List */}
+            <ScrollArea className="max-h-96">
+              <div className="space-y-4">
+                {duplicates.map((duplicate) => {
+                  const formattedExisting = formatDataForDisplay(duplicate.existing, duplicate.type);
+                  const formattedIncoming = formatDataForDisplay(duplicate.incoming, duplicate.type);
+                  
+                  return (
+                    <Card key={duplicate.id} className={duplicate.isIdentical ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="capitalize">
+                              {duplicate.type}
+                            </Badge>
+                            <span className="font-medium">{duplicate.id}</span>
+                            {duplicate.isIdentical ? (
+                              <Badge variant="default" className="bg-green-600">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Identical - Auto-merged
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Different - Needs Review
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          {!duplicate.isIdentical && (
+                            <Select
+                              value={duplicateResolutions[duplicate.id] || 'update'}
+                              onValueChange={(value: DuplicateResolution) => 
+                                handleDuplicateResolution(duplicate.id, value)
+                              }
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="update">Update</SelectItem>
+                                <SelectItem value="skip">Skip</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      </CardHeader>
+                      
+                      {!duplicate.isIdentical && (
+                        <CardContent>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <h4 className="font-medium text-sm mb-2 text-red-700">Existing Data</h4>
+                              <div className="space-y-1 text-xs">
+                                {Object.entries(formattedExisting).map(([key, value]) => (
+                                  <div key={key} className="flex justify-between">
+                                    <span className="text-muted-foreground">{key}:</span>
+                                    <span className="font-mono">{String(value)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <h4 className="font-medium text-sm mb-2 text-blue-700">Incoming Data</h4>
+                              <div className="space-y-1 text-xs">
+                                {Object.entries(formattedIncoming).map(([key, value]) => (
+                                  <div key={key} className="flex justify-between">
+                                    <span className="text-muted-foreground">{key}:</span>
+                                    <span className="font-mono">{String(value)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => setShowDuplicates(false)}
+                disabled={importing}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={proceedWithImport}
+                disabled={importing}
+              >
+                {importing ? 'Processing...' : 'Proceed with Import'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

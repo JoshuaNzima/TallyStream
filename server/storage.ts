@@ -1151,6 +1151,21 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
+  async getConstituency(id: string): Promise<Constituency | null> {
+    const [existing] = await db.select().from(constituencies).where(eq(constituencies.id, id));
+    return existing || null;
+  }
+
+  async getWard(id: string): Promise<Ward | null> {
+    const [existing] = await db.select().from(wards).where(eq(wards.id, id));
+    return existing || null;
+  }
+
+  async getCentre(id: string): Promise<Centre | null> {
+    const [existing] = await db.select().from(centres).where(eq(centres.id, id));
+    return existing || null;
+  }
+
   async upsertConstituency(constituency: InsertConstituency): Promise<Constituency> {
     const [existing] = await db.select().from(constituencies).where(eq(constituencies.id, constituency.id));
     

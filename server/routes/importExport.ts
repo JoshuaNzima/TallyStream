@@ -67,16 +67,34 @@ router.post('/import/constituencies', isAuthenticated, upload.single('file'), as
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Get the sheet name from request body (optional)
+    // Get options from request body
     const sheetName = req.body.sheetName;
+    const handleDuplicates = req.body.handleDuplicates || 'prompt'; // 'prompt', 'update', 'skip', 'merge'
+    const duplicateResolutions = req.body.duplicateResolutions ? JSON.parse(req.body.duplicateResolutions) : undefined;
 
-    const result = await excelImporter.importFromBuffer(req.file.buffer, sheetName);
-    
-    res.json({
-      message: 'Import completed',
-      success: result.success,
-      errors: result.errors,
+    const result = await excelImporter.importFromBuffer(req.file.buffer, sheetName, {
+      handleDuplicates,
+      duplicateResolutions
     });
+    
+    if (result.requiresUserAction) {
+      // Return duplicates for user to review
+      res.json({
+        requiresUserAction: true,
+        duplicates: result.duplicates,
+        message: 'Duplicates detected. Please review and provide resolution instructions.',
+        success: 0,
+        errors: result.errors,
+      });
+    } else {
+      // Normal completion
+      res.json({
+        message: 'Import completed',
+        success: result.success,
+        errors: result.errors,
+        duplicates: result.duplicates,
+      });
+    }
   } catch (error) {
     console.error('Import error:', error);
     res.status(500).json({ 
