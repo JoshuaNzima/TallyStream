@@ -39,8 +39,8 @@ export async function seedDatabase() {
       });
 
       await storage.createPoliticalParty({
-        name: "People's Liberation Party (PLP)",
-        abbreviation: "PLP",
+        name: "People's Party (PP)",
+        abbreviation: "PP",
         color: "#DC2626",
         description: "Liberation movement focused on social justice and equality"
       });
@@ -78,7 +78,7 @@ export async function seedDatabase() {
       // Get parties for candidate seeding
       const parties = await storage.getPoliticalParties();
       const dppParty = parties.find(p => p.abbreviation === "DPP");
-      const plpParty = parties.find(p => p.abbreviation === "PLP");
+      const ppParty = parties.find(p => p.abbreviation === "PP");
       const udaParty = parties.find(p => p.abbreviation === "UDA");
       const mcpParty = parties.find(p => p.abbreviation === "MCP");
       const udfParty = parties.find(p => p.abbreviation === "UDF");
@@ -92,10 +92,10 @@ export async function seedDatabase() {
       });
 
       await storage.createCandidate({
-        name: "Mary National", 
-        abbreviation: "MN",
-        party: "People's Liberation Party (PLP)",
-        partyId: plpParty?.id,
+        name: "Joyce Banda", 
+        abbreviation: "JB",
+        party: "People's Party (PP)",
+        partyId: ppParty?.id,
         category: "president",
       });
 
