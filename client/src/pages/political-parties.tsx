@@ -31,10 +31,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Users, Shield, Edit, Trash2, ToggleLeft, ToggleRight, Eye, Upload, Image, Grid, List, ChevronLeft, ChevronRight } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertPoliticalPartySchema } from "@shared/schema";
-import type { PoliticalParty } from "@shared/schema";
+import { insertPoliticalPartySchema, insertCandidateSchema } from "@shared/schema";
+import type { PoliticalParty, Candidate } from "@shared/schema";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const formSchema = insertPoliticalPartySchema.extend({
   color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, {
@@ -43,12 +44,17 @@ const formSchema = insertPoliticalPartySchema.extend({
   logoUrl: z.string().optional(),
 });
 
+const candidateFormSchema = insertCandidateSchema.extend({
+  abbreviation: z.string().optional(),
+});
+
 export function PoliticalPartiesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<PoliticalParty | null>(null);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const [currentPage, setCurrentPage] = useState(1);
   const [candidatesModalOpen, setCandidatesModalOpen] = useState(false);
+  const [candidateDialogOpen, setCandidateDialogOpen] = useState(false);
   const [selectedParty, setSelectedParty] = useState<PoliticalParty | null>(null);
   const itemsPerPage = 12;
   const { toast } = useToast();
@@ -64,12 +70,29 @@ export function PoliticalPartiesPage() {
     },
   });
 
+  const candidateForm = useForm<z.infer<typeof candidateFormSchema>>({
+    resolver: zodResolver(candidateFormSchema),
+    defaultValues: {
+      name: "",
+      abbreviation: "",
+      partyId: "",
+      party: "",
+      category: "mp" as const,
+      constituency: "",
+      isActive: true,
+    },
+  });
+
   const { data: parties, isLoading } = useQuery({
     queryKey: ["/api/political-parties"],
   });
 
   const { data: candidates } = useQuery({
     queryKey: ["/api/candidates"],
+  });
+
+  const { data: constituencies } = useQuery({
+    queryKey: ["/api/constituencies"],
   });
 
   const getCandidateCount = (partyId: string, partyName: string) => {
@@ -243,12 +266,57 @@ export function PoliticalPartiesPage() {
     },
   });
 
+  const createCandidateMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof candidateFormSchema>) => {
+      const response = await fetch("/api/candidates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create candidate");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
+      candidateForm.reset();
+      setCandidateDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "Candidate created successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (editingParty) {
       updatePartyMutation.mutate({ id: editingParty.id, data: values });
     } else {
       createPartyMutation.mutate(values);
     }
+  };
+
+  const onCandidateSubmit = (values: z.infer<typeof candidateFormSchema>) => {
+    // Set the party name automatically based on selected party
+    const selectedPartyData = (parties as any[])?.find(p => p.id === values.partyId);
+    const candidateData = {
+      ...values,
+      party: selectedPartyData?.name || values.party,
+    };
+    createCandidateMutation.mutate(candidateData);
   };
 
   const handleEdit = (party: PoliticalParty) => {
@@ -817,6 +885,28 @@ export function PoliticalPartiesPage() {
                 </CardContent>
               </Card>
 
+              {/* Add Candidate Button */}
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => {
+                    candidateForm.reset({
+                      name: "",
+                      abbreviation: "",
+                      partyId: selectedParty.id,
+                      party: selectedParty.name,
+                      category: "mp",
+                      constituency: "",
+                      isActive: true,
+                    });
+                    setCandidateDialogOpen(true);
+                  }}
+                  data-testid="button-add-candidate"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Candidate
+                </Button>
+              </div>
+
               {/* Candidates Breakdown */}
               {candidates && (
                 <div className="space-y-4">
@@ -842,7 +932,14 @@ export function PoliticalPartiesPage() {
                             {categoryCandidates.map((candidate: any) => (
                               <div key={candidate.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                 <div>
-                                  <div className="font-medium">{candidate.name}</div>
+                                  <div className="font-medium flex items-center gap-2">
+                                    {candidate.name}
+                                    {candidate.abbreviation && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {candidate.abbreviation}
+                                      </Badge>
+                                    )}
+                                  </div>
                                   {candidate.constituency && (
                                     <div className="text-sm text-gray-600">{candidate.constituency}</div>
                                   )}
@@ -870,6 +967,120 @@ export function PoliticalPartiesPage() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Candidate Dialog */}
+      <Dialog open={candidateDialogOpen} onOpenChange={setCandidateDialogOpen}>
+        <DialogContent data-testid="dialog-add-candidate">
+          <DialogHeader>
+            <DialogTitle>Add Candidate</DialogTitle>
+            <DialogDescription>
+              Add a new candidate to {selectedParty?.name || 'this party'}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...candidateForm}>
+            <form onSubmit={candidateForm.handleSubmit(onCandidateSubmit)} className="space-y-4">
+              <FormField
+                control={candidateForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Candidate Name *</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., John Doe"
+                        {...field}
+                        data-testid="input-candidate-name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={candidateForm.control}
+                name="abbreviation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Abbreviation</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., JD (for USSD quick entry)"
+                        {...field}
+                        value={field.value || ""}
+                        data-testid="input-candidate-abbreviation"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={candidateForm.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category *</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-candidate-category">
+                          <SelectValue placeholder="Select candidate category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="president">President</SelectItem>
+                        <SelectItem value="mp">Member of Parliament</SelectItem>
+                        <SelectItem value="councilor">Councilor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={candidateForm.control}
+                name="constituency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Constituency</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-candidate-constituency">
+                          <SelectValue placeholder="Select constituency (for MP/Councilor)" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(constituencies as any[])?.map((constituency: any) => (
+                          <SelectItem key={constituency.id} value={constituency.name}>
+                            {constituency.name}
+                          </SelectItem>
+                        )) || []}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCandidateDialogOpen(false)}
+                  data-testid="button-cancel-candidate"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createCandidateMutation.isPending}
+                  data-testid="button-submit-candidate"
+                >
+                  {createCandidateMutation.isPending ? "Creating..." : "Create Candidate"}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>
