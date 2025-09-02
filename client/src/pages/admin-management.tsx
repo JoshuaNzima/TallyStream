@@ -68,6 +68,11 @@ export default function AdminManagement() {
     queryKey: ["/api/polling-centers"],
   });
 
+  // Fetch constituencies for dropdown
+  const { data: constituencies } = useQuery({
+    queryKey: ["/api/constituencies"],
+  });
+
 
   // Toggle candidate active status
   const toggleCandidateMutation = useMutation({
@@ -537,12 +542,20 @@ export default function AdminManagement() {
                   </Select>
                   
                   {(selectedCategory === "mp" || selectedCategory === "councilor") && (
-                    <Input
-                      name="candidateConstituency"
-                      placeholder="Constituency/Ward"
-                      required
-                      data-testid="input-candidate-constituency"
-                    />
+                    <Select name="candidateConstituency" required>
+                      <SelectTrigger data-testid="select-candidate-constituency">
+                        <SelectValue placeholder={selectedCategory === "mp" ? "Select Constituency" : "Select Ward"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {constituencies && Array.isArray(constituencies) && constituencies
+                          .filter((constituency: any) => constituency.isActive)
+                          .map((constituency: any) => (
+                            <SelectItem key={constituency.id} value={constituency.name}>
+                              {constituency.name} ({constituency.district})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
                   )}
                 </div>
 

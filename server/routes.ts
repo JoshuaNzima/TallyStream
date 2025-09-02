@@ -346,6 +346,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get constituencies for dropdowns
+  app.get('/api/constituencies', isAuthenticated, async (req, res) => {
+    try {
+      const constituencies = await storage.getConstituencies();
+      res.json(constituencies);
+    } catch (error) {
+      console.error('Error fetching constituencies:', error);
+      res.status(500).json({ error: 'Failed to fetch constituencies' });
+    }
+  });
+
   // Auth routes
   app.post('/api/register', async (req, res) => {
     try {

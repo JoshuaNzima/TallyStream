@@ -53,6 +53,7 @@ export interface IStorage {
   
   // Hierarchical location operations
   getAllConstituenciesWithHierarchy(): Promise<(Constituency & { wards: (Ward & { centres: Centre[] })[] })[]>;
+  getConstituencies(): Promise<Constituency[]>;
   upsertConstituency(constituency: InsertConstituency): Promise<Constituency>;
   upsertWard(ward: InsertWard): Promise<Ward>;
   upsertCentre(centre: InsertCentre): Promise<Centre>;
@@ -226,12 +227,12 @@ export class DatabaseStorage implements IStorage {
 
   // Polling center operations
   async getPollingCenters(page?: number, limit?: number): Promise<{ data: PollingCenter[]; total: number; }> {
-    // Get total count
-    const totalResult = await db.select({ count: count() }).from(pollingCenters);
+    // Get total count of active polling centers
+    const totalResult = await db.select({ count: count() }).from(pollingCenters).where(eq(pollingCenters.isActive, true));
     const total = totalResult[0].count;
 
     // Apply pagination if specified
-    let query = db.select().from(pollingCenters).orderBy(desc(pollingCenters.createdAt));
+    let query = db.select().from(pollingCenters).where(eq(pollingCenters.isActive, true)).orderBy(desc(pollingCenters.createdAt));
     
     if (page !== undefined && limit !== undefined) {
       const offset = (page - 1) * limit;
@@ -1153,6 +1154,10 @@ export class DatabaseStorage implements IStorage {
           centres: centreData.filter(centre => centre.wardId === ward.id)
         }))
     }));
+  }
+
+  async getConstituencies(): Promise<Constituency[]> {
+    return await db.select().from(constituencies).where(eq(constituencies.isActive, true));
   }
 
   async getConstituency(id: string): Promise<Constituency | null> {
