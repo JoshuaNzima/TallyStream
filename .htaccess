@@ -1,0 +1,33 @@
+# PTC System - Hostinger Shared Hosting Configuration
+
+RewriteEngine On
+
+# Security Headers
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options DENY  
+Header always set X-XSS-Protection "1; mode=block"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+# Redirect all requests to index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Cache static assets
+<FilesMatch "\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$">
+    ExpiresActive On
+    ExpiresDefault "access plus 1 year"
+    Header append Cache-Control "public, immutable"
+</FilesMatch>
+
+# Protect sensitive files
+<FilesMatch "\.(env|log|json|ts|tsx)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect node_modules and server files
+<DirectoryMatch "/(node_modules|server|shared|src)/">
+    Order allow,deny
+    Deny from all
+</DirectoryMatch>

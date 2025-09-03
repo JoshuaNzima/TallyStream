@@ -235,9 +235,164 @@ export async function seedDatabase() {
         }
       });
 
+      // Create Infobip USSD provider (expanded to Malawi 2023)
+      await storage.createUssdProvider({
+        name: "Infobip",
+        type: "infobip",
+        configuration: {
+          webhookUrl: "/api/ussd/infobip",
+          description: "Infobip enterprise USSD platform with Malawi coverage",
+          supportedCountries: ["MW", "KE", "NA", "ZM", "ZW"],
+          responseFormat: "json",
+          sessionTimeout: 300,
+          features: ["shortcode_registration", "enterprise_platform"]
+        }
+      });
+
+      // Create HelloDuty USSD provider (Malawi-specific)
+      await storage.createUssdProvider({
+        name: "HelloDuty",
+        type: "helloduty",
+        configuration: {
+          webhookUrl: "/api/ussd/helloduty",
+          description: "HelloDuty USSD services with Malawi-specific pricing",
+          supportedCountries: ["MW"],
+          responseFormat: "session_based",
+          sessionTimeout: 240,
+          features: ["malawi_pricing", "whatsapp_integration", "sms_integration"]
+        }
+      });
+
+      // Create Telerivet USSD provider (visual development tools)
+      await storage.createUssdProvider({
+        name: "Telerivet",
+        type: "telerivet",
+        configuration: {
+          webhookUrl: "/api/ussd/telerivet",
+          description: "Telerivet USSD API with visual development tools for 20+ African countries",
+          supportedCountries: ["MW", "KE", "TZ", "UG", "ZM", "ZW", "BW", "MZ"],
+          responseFormat: "json_api",
+          sessionTimeout: 180,
+          features: ["visual_development", "no_code_tools", "javascript_support"]
+        }
+      });
+
+      // Create TNM Direct USSD provider (Telekom Networks Malawi)
+      await storage.createUssdProvider({
+        name: "TNM Direct",
+        type: "tnm_direct",
+        configuration: {
+          webhookUrl: "/api/ussd/tnm",
+          description: "Direct integration with Telekom Networks Malawi (oldest telecom in Malawi)",
+          supportedCountries: ["MW"],
+          responseFormat: "laravel_php",
+          sessionTimeout: 300,
+          features: ["mno_direct", "4m_customers", "90_percent_coverage", "laravel_adapter"]
+        }
+      });
+
       console.log("✓ Created USSD providers");
     } else {
       console.log("✓ USSD providers already exist");
+    }
+
+    // Check if WhatsApp providers already exist
+    const existingWhatsappProviders = await storage.getWhatsappProviders();
+    
+    if (existingWhatsappProviders.length === 0) {
+      // Create Meta WhatsApp Business API provider (set as primary)
+      await storage.createWhatsappProvider({
+        name: "Meta WhatsApp Business API",
+        type: "meta",
+        isPrimary: true,
+        configuration: {
+          webhookUrl: "/api/whatsapp/webhook",
+          description: "Official Meta WhatsApp Business Platform API",
+          apiVersion: "v19.0",
+          features: ["business_messaging", "media_upload", "webhooks", "templates"],
+          supportedCountries: ["global"],
+          pricing: "conversation_based"
+        }
+      });
+
+      // Create Wati provider
+      await storage.createWhatsappProvider({
+        name: "Wati",
+        type: "wati",
+        configuration: {
+          webhookUrl: "/api/whatsapp/wati",
+          description: "Wati WhatsApp Business API - Small-medium business focused",
+          apiVersion: "v1",
+          features: ["broadcasting", "automation_workflows", "chatbots", "crm_integrations", "analytics"],
+          supportedCountries: ["global"],
+          pricing: "subscription_based",
+          targetMarket: "SMB"
+        }
+      });
+
+      // Create Interakt provider
+      await storage.createWhatsappProvider({
+        name: "Interakt",
+        type: "interakt",
+        configuration: {
+          webhookUrl: "/api/whatsapp/interakt",
+          description: "Interakt multi-industry WhatsApp Business solutions",
+          apiVersion: "v2",
+          features: ["promotional_messages", "abandoned_cart_recovery", "hubspot_integration", "e_commerce"],
+          supportedCountries: ["global"],
+          pricing: "₹9,588-₹33,588/year + Meta fees",
+          integrations: ["HubSpot", "Shopify", "WooCommerce"]
+        }
+      });
+
+      // Create AiSensy provider
+      await storage.createWhatsappProvider({
+        name: "AiSensy",
+        type: "aisensy",
+        configuration: {
+          webhookUrl: "/api/whatsapp/aisensy",
+          description: "AiSensy marketing automation for WhatsApp",
+          apiVersion: "v1",
+          features: ["no_code_chatbot", "click_to_whatsapp_ads", "built_in_crm", "marketing_automation"],
+          supportedCountries: ["global"],
+          pricing: "transparent_pricing",
+          speciality: "marketing_automation"
+        }
+      });
+
+      // Create Twilio WhatsApp provider
+      await storage.createWhatsappProvider({
+        name: "Twilio WhatsApp",
+        type: "twilio",
+        configuration: {
+          webhookUrl: "/api/whatsapp/twilio",
+          description: "Twilio WhatsApp Business API for developers and enterprise",
+          apiVersion: "v2",
+          features: ["robust_api", "pay_as_you_use", "extensive_integrations", "global_reach"],
+          supportedCountries: ["global"],
+          pricing: "pay_per_message + Meta fees",
+          targetMarket: "developers_enterprise"
+        }
+      });
+
+      // Create Infobip WhatsApp provider
+      await storage.createWhatsappProvider({
+        name: "Infobip WhatsApp",
+        type: "infobip",
+        configuration: {
+          webhookUrl: "/api/whatsapp/infobip",
+          description: "Infobip enterprise WhatsApp communications platform",
+          apiVersion: "v1",
+          features: ["enterprise_communications", "web_interface", "media_files", "cloud_api_integration"],
+          supportedCountries: ["global"],
+          pricing: "enterprise_pricing",
+          targetMarket: "enterprise"
+        }
+      });
+
+      console.log("✓ Created WhatsApp providers");
+    } else {
+      console.log("✓ WhatsApp providers already exist");
     }
 
     console.log("🎉 Database seeding completed successfully!");

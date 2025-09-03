@@ -11,6 +11,7 @@ import {
   politicalParties,
   ussdSessions,
   ussdProviders,
+  whatsappProviders,
   type User,
   type UpsertUser,
   type PollingCenter,
@@ -34,6 +35,7 @@ import {
   type InsertAuditLog,
   type UssdSession,
   type UssdProvider,
+  type WhatsappProvider,
   type UserRole,
   type ResultStatus,
   type CandidateCategory,
@@ -92,6 +94,12 @@ export interface IStorage {
   getUssdProviders(): Promise<UssdProvider[]>;
   createUssdProvider(provider: { name: string; type: string; configuration: any }): Promise<UssdProvider>;
   updateUssdProvider(id: string, configuration: any): Promise<UssdProvider>;
+  
+  // WhatsApp Provider management
+  getWhatsappProviders(): Promise<WhatsappProvider[]>;
+  createWhatsappProvider(provider: { name: string; type: string; configuration: any; isPrimary?: boolean }): Promise<WhatsappProvider>;
+  updateWhatsappProvider(id: string, configuration: any): Promise<WhatsappProvider>;
+  setPrimaryWhatsappProvider(id: string): Promise<WhatsappProvider>;
   
   // Result operations
   getResults(): Promise<ResultWithRelations[]>;
@@ -1148,6 +1156,58 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date() 
       })
       .where(eq(ussdProviders.id, id))
+      .returning();
+    return provider;
+  }
+
+  // WhatsApp Provider management
+  async getWhatsappProviders(): Promise<WhatsappProvider[]> {
+    return await db.select().from(whatsappProviders).where(eq(whatsappProviders.isActive, true));
+  }
+
+  async createWhatsappProvider(provider: { name: string; type: string; configuration: any; isPrimary?: boolean }): Promise<WhatsappProvider> {
+    // If setting as primary, first unset all other primary providers
+    if (provider.isPrimary) {
+      await db
+        .update(whatsappProviders)
+        .set({ isPrimary: false, updatedAt: new Date() })
+        .where(eq(whatsappProviders.isPrimary, true));
+    }
+    
+    const [newProvider] = await db
+      .insert(whatsappProviders)
+      .values(provider)
+      .returning();
+    return newProvider;
+  }
+
+  async updateWhatsappProvider(id: string, configuration: any): Promise<WhatsappProvider> {
+    const [provider] = await db
+      .update(whatsappProviders)
+      .set({ 
+        configuration,
+        updatedAt: new Date() 
+      })
+      .where(eq(whatsappProviders.id, id))
+      .returning();
+    return provider;
+  }
+
+  async setPrimaryWhatsappProvider(id: string): Promise<WhatsappProvider> {
+    // First unset all primary providers
+    await db
+      .update(whatsappProviders)
+      .set({ isPrimary: false, updatedAt: new Date() })
+      .where(eq(whatsappProviders.isPrimary, true));
+    
+    // Then set the specified provider as primary
+    const [provider] = await db
+      .update(whatsappProviders)
+      .set({ 
+        isPrimary: true,
+        updatedAt: new Date() 
+      })
+      .where(eq(whatsappProviders.id, id))
       .returning();
     return provider;
   }

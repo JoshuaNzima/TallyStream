@@ -378,6 +378,18 @@ export const ussdProviders = pgTable("ussd_providers", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// WhatsApp Provider configurations
+export const whatsappProviders = pgTable("whatsapp_providers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").unique().notNull(),
+  type: varchar("type").notNull(), // 'meta', 'wati', 'interakt', 'aisensy', 'twilio', 'infobip', 'custom'
+  isActive: boolean("is_active").default(true).notNull(),
+  isPrimary: boolean("is_primary").default(false).notNull(), // Only one primary provider
+  configuration: jsonb("configuration").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
@@ -402,6 +414,7 @@ export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type UssdSession = typeof ussdSessions.$inferSelect;
 export type UssdProvider = typeof ussdProviders.$inferSelect;
+export type WhatsappProvider = typeof whatsappProviders.$inferSelect;
 
 // Extended types with relations
 export type ResultWithRelations = Result & {
