@@ -131,6 +131,31 @@
                 </div>
             </div>
 
+            <!-- Navigation to Advanced Dashboard -->
+            <div class="mb-8">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-bold mb-4">Advanced Features</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <a href="views/dashboard.php" target="_blank" 
+                           class="flex items-center p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
+                            <i class="fas fa-chart-line text-2xl text-blue-600 mr-4"></i>
+                            <div>
+                                <h3 class="font-semibold text-blue-900">Advanced Analytics</h3>
+                                <p class="text-sm text-blue-700">Real-time charts and OCR processing</p>
+                            </div>
+                        </a>
+                        
+                        <div class="flex items-center p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <i class="fas fa-eye text-2xl text-green-600 mr-4"></i>
+                            <div>
+                                <h3 class="font-semibold text-green-900">OCR Analysis</h3>
+                                <p class="text-sm text-green-700">Extract text from election documents</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Admin Features -->
             <div id="admin-section" class="hidden">
                 <div class="bg-white rounded-lg shadow p-6">

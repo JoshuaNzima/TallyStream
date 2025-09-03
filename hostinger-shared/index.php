@@ -81,6 +81,24 @@ if (strpos($request, 'api/') === 0) {
             }
             break;
             
+        case 'dashboard/analytics':
+            if ($method === 'GET') {
+                require_once 'api/dashboard/analytics.php';
+            }
+            break;
+            
+        case 'files/upload':
+            if ($method === 'POST') {
+                require_once 'api/files/upload.php';
+            }
+            break;
+            
+        case 'ocr/process':
+            if ($method === 'POST') {
+                require_once 'api/ocr/process.php';
+            }
+            break;
+            
         default:
             http_response_code(404);
             echo json_encode(['error' => 'API endpoint not found']);
