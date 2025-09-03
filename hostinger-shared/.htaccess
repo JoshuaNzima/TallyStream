@@ -1,0 +1,94 @@
+# PTC Election Management System - Apache Configuration for Hostinger
+
+# Enable rewrite engine
+RewriteEngine On
+
+# Force HTTPS (if enabled in environment)
+# Uncomment the following lines to force HTTPS
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Route all requests through index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?route=$1 [QSA,L]
+
+# Security headers
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options DENY
+Header always set X-XSS-Protection "1; mode=block"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'"
+
+# Cache control for static assets
+<FilesMatch "\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|pdf)$">
+    ExpiresActive On
+    ExpiresDefault "access plus 1 month"
+    Header append Cache-Control "public, immutable"
+</FilesMatch>
+
+# Protect sensitive files
+<FilesMatch "\.(env|log|ini|conf|sql|bak|md)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect directories
+RedirectMatch 404 /\..*$
+RedirectMatch 404 /config/.*$
+RedirectMatch 404 /includes/.*$
+RedirectMatch 404 /logs/.*$
+RedirectMatch 404 /backups/.*$
+
+# Enable compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
+</IfModule>
+
+# Set default charset
+AddDefaultCharset UTF-8
+
+# Prevent access to PHP files in uploads directory
+<Directory uploads>
+    <FilesMatch "\.php$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</Directory>
+
+# Error pages (optional)
+# ErrorDocument 404 /error/404.php
+# ErrorDocument 500 /error/500.php
+
+# Disable server signature
+ServerSignature Off
+
+# File upload security
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|php8|pl|py|jsp|asp|sh|cgi)$">
+    <IfModule mod_access.c>
+        Order allow,deny
+    </IfModule>
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</FilesMatch>
+
+# Allow access to main PHP files
+<FilesMatch "^(index|api|login|logout|dashboard)\.php$">
+    <IfModule mod_access.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+</FilesMatch>
