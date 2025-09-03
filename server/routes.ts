@@ -1506,6 +1506,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // API Settings endpoints
+  // Get USSD providers
+  app.get("/api/ussd-providers", isAuthenticated, async (req: any, res) => {
+    try {
+      const providers = await storage.getUssdProviders();
+      res.json(providers);
+    } catch (error) {
+      console.error("Error fetching USSD providers:", error);
+      res.status(500).json({ message: "Failed to fetch USSD providers" });
+    }
+  });
+
+  // Get WhatsApp providers
+  app.get("/api/whatsapp-providers", isAuthenticated, async (req: any, res) => {
+    try {
+      const providers = await storage.getWhatsappProviders();
+      res.json(providers);
+    } catch (error) {
+      console.error("Error fetching WhatsApp providers:", error);
+      res.status(500).json({ message: "Failed to fetch WhatsApp providers" });
+    }
+  });
+
   app.post("/api/admin/api-settings", isAuthenticated, async (req: any, res) => {
     try {
       const currentUser = req.user;

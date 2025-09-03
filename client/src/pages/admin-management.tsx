@@ -74,6 +74,16 @@ export default function AdminManagement() {
     queryKey: ["/api/constituencies"],
   });
 
+  // Fetch USSD providers
+  const { data: ussdProviders } = useQuery({
+    queryKey: ["/api/ussd-providers"],
+  });
+
+  // Fetch WhatsApp providers
+  const { data: whatsappProviders } = useQuery({
+    queryKey: ["/api/whatsapp-providers"],
+  });
+
   // Fetch wards for councilor dropdown
   const { data: wards } = useQuery({
     queryKey: ["/api/wards"],
@@ -1287,6 +1297,48 @@ export default function AdminManagement() {
                       </div>
                     </div>
                   )}
+
+                  {/* Available WhatsApp Providers */}
+                  {apiSettings.whatsappEnabled && whatsappProviders && whatsappProviders.length > 0 && (
+                    <div className="mt-6 space-y-4">
+                      <h4 className="font-medium text-green-900">Available WhatsApp Providers</h4>
+                      <div className="grid gap-4">
+                        {whatsappProviders.map((provider) => (
+                          <div key={provider.id} className="bg-green-50 border border-green-200 rounded p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <p className="font-medium text-green-900">{provider.name}</p>
+                                <p className="text-sm text-green-700">{provider.configuration?.description || `${provider.type} WhatsApp service`}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={provider.isPrimary ? "default" : "secondary"}>
+                                  {provider.isPrimary ? "Primary" : "Alternative"}
+                                </Badge>
+                                <Badge variant={provider.isActive ? "default" : "outline"}>
+                                  {provider.isActive ? "Active" : "Inactive"}
+                                </Badge>
+                              </div>
+                            </div>
+                            {provider.configuration?.features && (
+                              <div className="text-xs text-green-700">
+                                <strong>Features:</strong> {provider.configuration.features.join(', ')}
+                              </div>
+                            )}
+                            {provider.configuration?.pricing && (
+                              <div className="text-xs text-green-600 mt-1">
+                                <strong>Pricing:</strong> {provider.configuration.pricing}
+                              </div>
+                            )}
+                            {provider.configuration?.webhookUrl && (
+                              <div className="text-xs text-green-700 bg-green-100 p-2 rounded mt-2">
+                                <strong>Webhook:</strong> {provider.configuration.webhookUrl}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1324,7 +1376,38 @@ export default function AdminManagement() {
                         Multiple USSD providers can be enabled concurrently for redundancy and better coverage
                       </p>
 
-                      {/* Twilio USSD */}
+                      {/* Dynamic USSD Providers from Database */}
+                      {ussdProviders?.map((provider) => (
+                        <div key={provider.id} className="bg-blue-50 border border-blue-200 rounded p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <p className="font-medium text-blue-900">{provider.name}</p>
+                              <p className="text-sm text-blue-700">{provider.configuration?.description || `${provider.type} USSD service`}</p>
+                              {provider.configuration?.supportedCountries && (
+                                <p className="text-xs text-blue-600 mt-1">
+                                  Countries: {provider.configuration.supportedCountries.join(', ')}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={provider.isActive ? "default" : "secondary"}>
+                                {provider.isActive ? "Active" : "Inactive"}
+                              </Badge>
+                              <Checkbox
+                                checked={provider.isActive}
+                                data-testid={`checkbox-${provider.type}-ussd`}
+                              />
+                            </div>
+                          </div>
+                          {provider.configuration?.webhookUrl && (
+                            <div className="text-xs text-blue-700 bg-blue-100 p-2 rounded">
+                              <strong>Webhook:</strong> {provider.configuration.webhookUrl}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Legacy Twilio Config */}
                       <div className="bg-blue-50 border border-blue-200 rounded p-4">
                         <div className="flex items-center justify-between mb-3">
                           <div>
