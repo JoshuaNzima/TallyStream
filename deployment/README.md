@@ -35,11 +35,6 @@ gcloud builds submit --config=deployment/google-cloud/cloudbuild.yaml
 sudo bash deployment/digitalocean/deploy.sh
 ```
 
-#### Hostinger VPS/Shared Hosting
-```bash
-# Run the Hostinger deployment script
-bash deployment/hostinger/deploy.sh
-```
 
 ## Deployment Options
 
@@ -96,22 +91,6 @@ bash deployment/hostinger/deploy.sh
 2. Run: `sudo bash deployment/digitalocean/deploy.sh`
 3. Configure domain and SSL
 
-### 4. Hostinger VPS/Shared Hosting
-
-**Pros:**
-- Affordable hosting
-- Good for small to medium deployments
-- Managed infrastructure
-
-**Requirements:**
-- Node.js support
-- PostgreSQL database
-- SSH access (for VPS)
-
-**Steps:**
-1. Upload files via FTP/SSH
-2. Run: `bash deployment/hostinger/deploy.sh`
-3. Configure domain
 
 ## Environment Configuration
 
@@ -284,11 +263,6 @@ tar -czf ptc_files_$(date +%Y%m%d).tar.gz uploads/ .env
 - Set up automated backups
 - Use load balancers for scaling
 
-### Hostinger
-- Shared hosting has limitations
-- VPS recommended for production
-- Use managed databases when available
-- Monitor resource usage
 
 ## Troubleshooting
 
