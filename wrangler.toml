@@ -1,0 +1,3 @@
+name = "rest-express"
+compatibility_date = "2025-09-03"
+main = "dist/index.js"
