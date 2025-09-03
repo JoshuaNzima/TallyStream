@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 name = "ptc-election-system"
 main = "workers/src/index.ts"
 compatibility_date = "2023-12-18"
@@ -55,3 +56,8 @@ new_classes = ["WebSocketDurableObject"]
 # Limits and settings
 [limits]
 cpu_ms = 50
+=======
+name = "rest-express"
+compatibility_date = "2025-09-03"
+main = "dist/index.js"
+>>>>>>> 098434bbd0719ac89ed429330f1de55981bfbf43
