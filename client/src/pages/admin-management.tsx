@@ -15,6 +15,7 @@ export default function AdminManagement() {
   const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState("president");
   const [editingCenter, setEditingCenter] = useState<any>(null);
+  const [configuringProvider, setConfiguringProvider] = useState<{ type: string; id: string } | null>(null);
   const [cleanupOptions, setCleanupOptions] = useState({
     users: false,
     candidates: false,
@@ -87,6 +88,50 @@ export default function AdminManagement() {
   // Fetch wards for councilor dropdown
   const { data: wards } = useQuery({
     queryKey: ["/api/wards"],
+  });
+
+  // Toggle USSD provider mutation
+  const toggleUssdProviderMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const res = await apiRequest("PUT", `/api/ussd-providers/${id}`, { isActive });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "USSD provider updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/ussd-providers"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update USSD provider",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Toggle WhatsApp provider mutation
+  const toggleWhatsappProviderMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const res = await apiRequest("PUT", `/api/whatsapp-providers/${id}`, { isActive });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success", 
+        description: "WhatsApp provider updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp-providers"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update WhatsApp provider",
+        variant: "destructive",
+      });
+    },
   });
 
 
@@ -1317,6 +1362,16 @@ export default function AdminManagement() {
                                 <Badge variant={provider.isActive ? "default" : "outline"}>
                                   {provider.isActive ? "Active" : "Inactive"}
                                 </Badge>
+                                <Checkbox
+                                  checked={provider.isActive}
+                                  onCheckedChange={(checked) =>
+                                    toggleWhatsappProviderMutation.mutate({
+                                      id: provider.id,
+                                      isActive: checked as boolean
+                                    })
+                                  }
+                                  data-testid={`checkbox-${provider.type}-whatsapp`}
+                                />
                               </div>
                             </div>
                             {provider.configuration?.features && (
@@ -1334,6 +1389,23 @@ export default function AdminManagement() {
                                 <strong>Webhook:</strong> {provider.configuration.webhookUrl}
                               </div>
                             )}
+                            
+                            {/* Configuration Interface */}
+                            <div className="mt-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setConfiguringProvider({
+                                  type: 'whatsapp',
+                                  id: provider.id
+                                })}
+                                className="text-green-700 hover:text-green-800"
+                                data-testid={`button-configure-${provider.type}-whatsapp`}
+                              >
+                                <Edit className="w-3 h-3 mr-1" />
+                                Configure
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1395,6 +1467,12 @@ export default function AdminManagement() {
                               </Badge>
                               <Checkbox
                                 checked={provider.isActive}
+                                onCheckedChange={(checked) =>
+                                  toggleUssdProviderMutation.mutate({
+                                    id: provider.id,
+                                    isActive: checked as boolean
+                                  })
+                                }
                                 data-testid={`checkbox-${provider.type}-ussd`}
                               />
                             </div>
@@ -1404,6 +1482,23 @@ export default function AdminManagement() {
                               <strong>Webhook:</strong> {provider.configuration.webhookUrl}
                             </div>
                           )}
+                          
+                          {/* Configuration Interface */}
+                          <div className="mt-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setConfiguringProvider({
+                                type: 'ussd',
+                                id: provider.id
+                              })}
+                              className="text-blue-700 hover:text-blue-800"
+                              data-testid={`button-configure-${provider.type}-ussd`}
+                            >
+                              <Edit className="w-3 h-3 mr-1" />
+                              Configure
+                            </Button>
+                          </div>
                         </div>
                       ))}
 

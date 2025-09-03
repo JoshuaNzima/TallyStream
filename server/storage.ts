@@ -93,12 +93,12 @@ export interface IStorage {
   // USSD Provider management
   getUssdProviders(): Promise<UssdProvider[]>;
   createUssdProvider(provider: { name: string; type: string; configuration: any }): Promise<UssdProvider>;
-  updateUssdProvider(id: string, configuration: any): Promise<UssdProvider>;
+  updateUssdProvider(id: string, updates: { isActive?: boolean; configuration?: any }): Promise<UssdProvider>;
   
   // WhatsApp Provider management
   getWhatsappProviders(): Promise<WhatsappProvider[]>;
   createWhatsappProvider(provider: { name: string; type: string; configuration: any; isPrimary?: boolean }): Promise<WhatsappProvider>;
-  updateWhatsappProvider(id: string, configuration: any): Promise<WhatsappProvider>;
+  updateWhatsappProvider(id: string, updates: { isActive?: boolean; configuration?: any; isPrimary?: boolean }): Promise<WhatsappProvider>;
   setPrimaryWhatsappProvider(id: string): Promise<WhatsappProvider>;
   
   // Result operations
@@ -1148,13 +1148,14 @@ export class DatabaseStorage implements IStorage {
     return newProvider;
   }
 
-  async updateUssdProvider(id: string, configuration: any): Promise<UssdProvider> {
+  async updateUssdProvider(id: string, updates: { isActive?: boolean; configuration?: any }): Promise<UssdProvider> {
+    const updateData: any = { updatedAt: new Date() };
+    if (typeof updates.isActive === 'boolean') updateData.isActive = updates.isActive;
+    if (updates.configuration) updateData.configuration = updates.configuration;
+    
     const [provider] = await db
       .update(ussdProviders)
-      .set({ 
-        configuration,
-        updatedAt: new Date() 
-      })
+      .set(updateData)
       .where(eq(ussdProviders.id, id))
       .returning();
     return provider;
@@ -1181,13 +1182,24 @@ export class DatabaseStorage implements IStorage {
     return newProvider;
   }
 
-  async updateWhatsappProvider(id: string, configuration: any): Promise<WhatsappProvider> {
+  async updateWhatsappProvider(id: string, updates: { isActive?: boolean; configuration?: any; isPrimary?: boolean }): Promise<WhatsappProvider> {
+    const updateData: any = { updatedAt: new Date() };
+    if (typeof updates.isActive === 'boolean') updateData.isActive = updates.isActive;
+    if (typeof updates.isPrimary === 'boolean') {
+      // If setting as primary, first unset all other primary providers
+      if (updates.isPrimary) {
+        await db
+          .update(whatsappProviders)
+          .set({ isPrimary: false, updatedAt: new Date() })
+          .where(eq(whatsappProviders.isPrimary, true));
+      }
+      updateData.isPrimary = updates.isPrimary;
+    }
+    if (updates.configuration) updateData.configuration = updates.configuration;
+    
     const [provider] = await db
       .update(whatsappProviders)
-      .set({ 
-        configuration,
-        updatedAt: new Date() 
-      })
+      .set(updateData)
       .where(eq(whatsappProviders.id, id))
       .returning();
     return provider;

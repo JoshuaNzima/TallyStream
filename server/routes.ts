@@ -1528,6 +1528,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update USSD provider configuration
+  app.put("/api/ussd-providers/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = req.user;
+      if (currentUser?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      const { isActive, configuration } = req.body;
+      
+      // Update provider active status or configuration
+      const updates: any = {};
+      if (typeof isActive === 'boolean') updates.isActive = isActive;
+      if (configuration) updates.configuration = configuration;
+      
+      // Update the provider
+      await storage.updateUssdProvider(id, updates);
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: "UPDATE",
+        entityType: "ussd_provider",
+        entityId: id,
+        newValues: updates,
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json({ message: "USSD provider updated successfully" });
+    } catch (error) {
+      console.error("Error updating USSD provider:", error);
+      res.status(500).json({ message: "Failed to update USSD provider" });
+    }
+  });
+
+  // Update WhatsApp provider configuration
+  app.put("/api/whatsapp-providers/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = req.user;
+      if (currentUser?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      const { isActive, configuration, isPrimary } = req.body;
+      
+      // Update provider
+      const updates: any = {};
+      if (typeof isActive === 'boolean') updates.isActive = isActive;
+      if (typeof isPrimary === 'boolean') updates.isPrimary = isPrimary;
+      if (configuration) updates.configuration = configuration;
+      
+      await storage.updateWhatsappProvider(id, updates);
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: "UPDATE",
+        entityType: "whatsapp_provider",
+        entityId: id,
+        newValues: updates,
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      res.json({ message: "WhatsApp provider updated successfully" });
+    } catch (error) {
+      console.error("Error updating WhatsApp provider:", error);
+      res.status(500).json({ message: "Failed to update WhatsApp provider" });
+    }
+  });
+
   app.post("/api/admin/api-settings", isAuthenticated, async (req: any, res) => {
     try {
       const currentUser = req.user;
