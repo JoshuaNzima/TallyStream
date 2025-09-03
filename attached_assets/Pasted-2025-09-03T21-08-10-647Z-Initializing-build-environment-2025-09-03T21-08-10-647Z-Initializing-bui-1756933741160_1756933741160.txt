@@ -1,0 +1,39 @@
+2025-09-03T21:08:10.647Z	Initializing build environment...
+2025-09-03T21:08:10.647Z	Initializing build environment...
+2025-09-03T21:08:18.314Z	Success: Finished initializing build environment
+2025-09-03T21:08:19.166Z	Cloning repository...
+2025-09-03T21:08:21.902Z	Detected the following tools from environment: npm@10.9.2, nodejs@22.16.0
+2025-09-03T21:08:21.905Z	Restoring from dependencies cache
+2025-09-03T21:08:21.908Z	Restoring from build output cache
+2025-09-03T21:08:22.447Z	Installing project dependencies: npm clean-install --progress=false
+2025-09-03T21:08:27.682Z	npm error code ERESOLVE
+2025-09-03T21:08:27.682Z	npm error ERESOLVE could not resolve
+2025-09-03T21:08:27.683Z	npm error
+2025-09-03T21:08:27.683Z	npm error While resolving: @tailwindcss/vite@4.1.3
+2025-09-03T21:08:27.683Z	npm error Found: vite@7.1.4
+2025-09-03T21:08:27.683Z	npm error node_modules/vite
+2025-09-03T21:08:27.683Z	npm error   dev vite@"^7.1.4" from the root project
+2025-09-03T21:08:27.683Z	npm error   peer vite@"^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0" from @vitejs/plugin-react@4.7.0
+2025-09-03T21:08:27.683Z	npm error   node_modules/@vitejs/plugin-react
+2025-09-03T21:08:27.683Z	npm error     dev @vitejs/plugin-react@"^4.3.2" from the root project
+2025-09-03T21:08:27.683Z	npm error
+2025-09-03T21:08:27.683Z	npm error Could not resolve dependency:
+2025-09-03T21:08:27.683Z	npm error peer vite@"^5.2.0 || ^6" from @tailwindcss/vite@4.1.3
+2025-09-03T21:08:27.684Z	npm error node_modules/@tailwindcss/vite
+2025-09-03T21:08:27.684Z	npm error   dev @tailwindcss/vite@"^4.1.3" from the root project
+2025-09-03T21:08:27.684Z	npm error
+2025-09-03T21:08:27.684Z	npm error Conflicting peer dependency: vite@6.3.5
+2025-09-03T21:08:27.686Z	npm error node_modules/vite
+2025-09-03T21:08:27.686Z	npm error   peer vite@"^5.2.0 || ^6" from @tailwindcss/vite@4.1.3
+2025-09-03T21:08:27.686Z	npm error   node_modules/@tailwindcss/vite
+2025-09-03T21:08:27.686Z	npm error     dev @tailwindcss/vite@"^4.1.3" from the root project
+2025-09-03T21:08:27.686Z	npm error
+2025-09-03T21:08:27.687Z	npm error Fix the upstream dependency conflict, or retry
+2025-09-03T21:08:27.687Z	npm error this command with --force or --legacy-peer-deps
+2025-09-03T21:08:27.687Z	npm error to accept an incorrect (and potentially broken) dependency resolution.
+2025-09-03T21:08:27.687Z	npm error
+2025-09-03T21:08:27.687Z	npm error
+2025-09-03T21:08:27.687Z	npm error For a full report see:
+2025-09-03T21:08:27.687Z	npm error /opt/buildhome/.npm/_logs/2025-09-03T21_08_22_948Z-eresolve-report.txt
+2025-09-03T21:08:27.688Z	npm error A complete log of this run can be found in: /opt/buildhome/.npm/_logs/2025-09-03T21_08_22_948Z-debug-0.log
+2025-09-03T21:08:27.766Z	Failed: error occurred while installing tools or dependencies
