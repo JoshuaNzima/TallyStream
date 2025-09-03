@@ -11,6 +11,8 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@cloudflare/workers-types": "^4.20250903.0",
+    "@hono/node-server": "^1.19.1",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
@@ -62,6 +64,7 @@
     "express": "^4.21.2",
     "express-session": "^1.18.1",
     "framer-motion": "^11.13.1",
+    "hono": "^4.9.6",
     "input-otp": "^1.4.2",
     "jspdf": "^3.0.2",
     "jspdf-autotable": "^5.0.2",
@@ -89,6 +92,7 @@
     "tw-animate-css": "^1.2.5",
     "vaul": "^1.1.2",
     "wouter": "^3.3.5",
+    "wrangler": "^4.33.2",
     "ws": "^8.18.0",
     "xlsx": "^0.18.5",
     "zod": "^3.24.2",
