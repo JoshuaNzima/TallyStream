@@ -1,63 +1,63 @@
-<<<<<<< HEAD
-name = "ptc-election-system"
-main = "workers/src/index.ts"
-compatibility_date = "2023-12-18"
-compatibility_flags = ["nodejs_compat"]
-
-# KV namespace for session storage and caching
-[[kv_namespaces]]
-binding = "KV"
-id = "ptc_kv_namespace"
-preview_id = "ptc_kv_preview"
-
-# R2 bucket for file uploads
-[[r2_buckets]]
-binding = "FILES"
-bucket_name = "ptc-files"
-preview_bucket_name = "ptc-files-preview"
-
-# D1 database for SQLite
-[[d1_databases]]
-binding = "DB"
-database_name = "ptc-election-db"
-database_id = "your-d1-database-id"
-
-# Environment variables
-[env.production.vars]
-NODE_ENV = "production"
-SESSION_SECRET = "your-session-secret-change-this"
-DATABASE_URL = "your-external-postgres-url-if-using"
-ENCRYPTION_KEY = "your-32-char-encryption-key-here"
-
-[env.development.vars]
-NODE_ENV = "development"
-SESSION_SECRET = "dev-session-secret"
-DATABASE_URL = "postgresql://localhost:5432/ptc_election"
-ENCRYPTION_KEY = "dev-encryption-key-32chars-long"
-
-# Static site configuration for React frontend
-[site]
-bucket = "./dist"
-entry-point = "workers"
-
-# Build configuration
-[build]
-command = "npm run build:workers"
-
-# Durable Objects for WebSocket support
-[[durable_objects.bindings]]
-name = "WEBSOCKET_DO"
-class_name = "WebSocketDurableObject"
-
-[[migrations]]
-tag = "v1"
-new_classes = ["WebSocketDurableObject"]
-
-# Limits and settings
-[limits]
-cpu_ms = 50
-=======
 name = "rest-express"
 compatibility_date = "2025-09-03"
 main = "dist/index.js"
->>>>>>> 098434bbd0719ac89ed429330f1de55981bfbf43
+
+# ─────────────────────────────
+# 🔐 Future configuration (uncomment when ready)
+# ─────────────────────────────
+
+# # Enable Node.js compatibility (needed for some Node packages)
+# compatibility_flags = ["nodejs_compat"]
+
+# # KV namespace for session storage and caching
+# [[kv_namespaces]]
+# binding = "KV"
+# id = "ptc_kv_namespace"
+# preview_id = "ptc_kv_preview"
+
+# # R2 bucket for file uploads
+# [[r2_buckets]]
+# binding = "FILES"
+# bucket_name = "ptc-files"
+# preview_bucket_name = "ptc-files-preview"
+
+# # D1 database for SQLite
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "ptc-election-db"
+# database_id = "your-d1-database-id"
+
+# # Environment variables
+# [env.production.vars]
+# NODE_ENV = "production"
+# SESSION_SECRET = "your-session-secret-change-this"
+# DATABASE_URL = "your-external-postgres-url-if-using"
+# ENCRYPTION_KEY = "your-32-char-encryption-key-here"
+
+# [env.development.vars]
+# NODE_ENV = "development"
+# SESSION_SECRET = "dev-session-secret"
+# DATABASE_URL = "postgresql://localhost:5432/ptc_election"
+# ENCRYPTION_KEY = "dev-encryption-key-32chars-long"
+
+# # Static site configuration for React frontend
+# [site]
+# bucket = "./dist"
+# entry-point = "workers"
+
+# # Build configuration
+# [build]
+# command = "npm run build:workers"
+
+# # Durable Objects for WebSocket support
+# [[durable_objects.bindings]]
+# name = "WEBSOCKET_DO"
+# class_name = "WebSocketDurableObject"
+
+# [[migrations]]
+# tag = "v1"
+# new_classes = ["WebSocketDurableObject"]
+
+# # Limits and settings
+# [limits]
+# cpu_ms = 50
