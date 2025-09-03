@@ -10,12 +10,24 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Users, UserCheck, Building, Vote, MapPin, Database, Archive, Trash2, AlertTriangle, Zap, Key, MessageSquare, Shield, Edit, ToggleLeft, ToggleRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function AdminManagement() {
   const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState("president");
   const [editingCenter, setEditingCenter] = useState<any>(null);
-  const [configuringProvider, setConfiguringProvider] = useState<{ type: string; id: string } | null>(null);
+  const [configuringProvider, setConfiguringProvider] = useState<{ type: string; id: string; name: string; currentConfig?: any } | null>(null);
+  const [providerConfig, setProviderConfig] = useState({
+    apiKey: '',
+    accountSid: '',
+    authToken: '',
+    phoneNumber: '',
+    shortCode: '',
+    clientId: '',
+    clientSecret: '',
+    webhookUrl: '',
+    description: ''
+  });
   const [cleanupOptions, setCleanupOptions] = useState({
     users: false,
     candidates: false,
@@ -134,6 +146,30 @@ export default function AdminManagement() {
     },
   });
 
+  // Save provider configuration mutation
+  const saveProviderConfigMutation = useMutation({
+    mutationFn: async ({ id, type, configuration }: { id: string; type: string; configuration: any }) => {
+      const endpoint = type === 'whatsapp' ? `/api/whatsapp-providers/${id}` : `/api/ussd-providers/${id}`;
+      const res = await apiRequest("PUT", endpoint, { configuration });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Provider configuration saved successfully",
+      });
+      setConfiguringProvider(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/ussd-providers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp-providers"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save provider configuration",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Toggle candidate active status
   const toggleCandidateMutation = useMutation({
@@ -1395,10 +1431,25 @@ export default function AdminManagement() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setConfiguringProvider({
-                                  type: 'whatsapp',
-                                  id: provider.id
-                                })}
+                                onClick={() => {
+                                  setConfiguringProvider({
+                                    type: 'whatsapp',
+                                    id: provider.id,
+                                    name: provider.name,
+                                    currentConfig: provider.configuration
+                                  });
+                                  setProviderConfig({
+                                    apiKey: provider.configuration?.apiKey || '',
+                                    accountSid: provider.configuration?.accountSid || '',
+                                    authToken: provider.configuration?.authToken || '',
+                                    phoneNumber: provider.configuration?.phoneNumber || '',
+                                    shortCode: provider.configuration?.shortCode || '',
+                                    clientId: provider.configuration?.clientId || '',
+                                    clientSecret: provider.configuration?.clientSecret || '',
+                                    webhookUrl: provider.configuration?.webhookUrl || '',
+                                    description: provider.configuration?.description || ''
+                                  });
+                                }}
                                 className="text-green-700 hover:text-green-800"
                                 data-testid={`button-configure-${provider.type}-whatsapp`}
                               >
@@ -1488,10 +1539,25 @@ export default function AdminManagement() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setConfiguringProvider({
-                                type: 'ussd',
-                                id: provider.id
-                              })}
+                              onClick={() => {
+                                setConfiguringProvider({
+                                  type: 'ussd',
+                                  id: provider.id,
+                                  name: provider.name,
+                                  currentConfig: provider.configuration
+                                });
+                                setProviderConfig({
+                                  apiKey: provider.configuration?.apiKey || '',
+                                  accountSid: provider.configuration?.accountSid || '',
+                                  authToken: provider.configuration?.authToken || '',
+                                  phoneNumber: provider.configuration?.phoneNumber || '',
+                                  shortCode: provider.configuration?.shortCode || '',
+                                  clientId: provider.configuration?.clientId || '',
+                                  clientSecret: provider.configuration?.clientSecret || '',
+                                  webhookUrl: provider.configuration?.webhookUrl || '',
+                                  description: provider.configuration?.description || ''
+                                });
+                              }}
                               className="text-blue-700 hover:text-blue-800"
                               data-testid={`button-configure-${provider.type}-ussd`}
                             >
@@ -2068,6 +2134,129 @@ export default function AdminManagement() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Provider Configuration Dialog */}
+      <Dialog open={!!configuringProvider} onOpenChange={() => setConfiguringProvider(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Configure {configuringProvider?.name} ({configuringProvider?.type?.toUpperCase()})
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 mt-4">
+            <div>
+              <label className="text-sm font-medium">Description</label>
+              <Input
+                value={providerConfig.description}
+                onChange={(e) => setProviderConfig(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Provider description"
+                data-testid="input-provider-description"
+              />
+            </div>
+
+            {configuringProvider?.type === 'whatsapp' && (
+              <>
+                <div>
+                  <label className="text-sm font-medium">WhatsApp API Key</label>
+                  <Input
+                    type="password"
+                    value={providerConfig.apiKey}
+                    onChange={(e) => setProviderConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                    placeholder="WhatsApp Business API key"
+                    data-testid="input-whatsapp-api-key"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Phone Number</label>
+                  <Input
+                    value={providerConfig.phoneNumber}
+                    onChange={(e) => setProviderConfig(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                    placeholder="WhatsApp phone number"
+                    data-testid="input-whatsapp-phone"
+                  />
+                </div>
+              </>
+            )}
+
+            {configuringProvider?.type === 'ussd' && (
+              <>
+                <div>
+                  <label className="text-sm font-medium">Account SID / Client ID</label>
+                  <Input
+                    value={providerConfig.accountSid || providerConfig.clientId}
+                    onChange={(e) => setProviderConfig(prev => ({ 
+                      ...prev, 
+                      accountSid: e.target.value,
+                      clientId: e.target.value 
+                    }))}
+                    placeholder="Account SID or Client ID"
+                    data-testid="input-ussd-account-id"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Auth Token / Client Secret</label>
+                  <Input
+                    type="password"
+                    value={providerConfig.authToken || providerConfig.clientSecret}
+                    onChange={(e) => setProviderConfig(prev => ({ 
+                      ...prev, 
+                      authToken: e.target.value,
+                      clientSecret: e.target.value 
+                    }))}
+                    placeholder="Auth token or client secret"
+                    data-testid="input-ussd-auth-token"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">USSD Short Code</label>
+                  <Input
+                    value={providerConfig.shortCode}
+                    onChange={(e) => setProviderConfig(prev => ({ ...prev, shortCode: e.target.value }))}
+                    placeholder="USSD short code (e.g., *123#)"
+                    data-testid="input-ussd-short-code"
+                  />
+                </div>
+              </>
+            )}
+
+            <div>
+              <label className="text-sm font-medium">Webhook URL (Optional)</label>
+              <Input
+                value={providerConfig.webhookUrl}
+                onChange={(e) => setProviderConfig(prev => ({ ...prev, webhookUrl: e.target.value }))}
+                placeholder="https://your-webhook-url.com/webhook"
+                data-testid="input-provider-webhook"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => setConfiguringProvider(null)}
+                data-testid="button-cancel-configure"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (configuringProvider) {
+                    saveProviderConfigMutation.mutate({
+                      id: configuringProvider.id,
+                      type: configuringProvider.type,
+                      configuration: providerConfig
+                    });
+                  }
+                }}
+                disabled={saveProviderConfigMutation.isPending}
+                data-testid="button-save-configure"
+              >
+                {saveProviderConfigMutation.isPending ? "Saving..." : "Save Configuration"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
