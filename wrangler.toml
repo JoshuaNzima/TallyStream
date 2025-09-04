@@ -2,8 +2,8 @@ name = "pp-ptc"
 compatibility_date = "2025-09-03"
 main = "workers/src/index.ts"
 
-# # Enable Node.js compatibility (needed for some Node packages)
-# compatibility_flags = ["nodejs_compat"]
+# Enable Node.js compatibility (needed for some Node packages)
+compatibility_flags = ["nodejs_compat"]
 
 # # KV namespace for session storage and caching
 # [[kv_namespaces]]
