@@ -23,12 +23,14 @@ compatibility_flags = ["nodejs_compat"]
 # database_name = "ptc-election-db"
 # database_id = "your-d1-database-id"
 
-# # Environment variables
-# [env.production.vars]
-# NODE_ENV = "production"
-# SESSION_SECRET = "your-session-secret-change-this"
-# DATABASE_URL = "your-external-postgres-url-if-using"
-# ENCRYPTION_KEY = "your-32-char-encryption-key-here"
+# Environment variables for production
+[vars]
+NODE_ENV = "production"
+
+# Note: For security, set these via Cloudflare dashboard or wrangler secrets:
+# wrangler secret put SESSION_SECRET
+# wrangler secret put DATABASE_URL  
+# wrangler secret put ENCRYPTION_KEY
 
 # [env.development.vars]
 # NODE_ENV = "development"
