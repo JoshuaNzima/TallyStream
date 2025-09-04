@@ -1,18 +1,16 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serveStatic } from 'hono/cloudflare-workers';
-import { setupRoutes } from './routes';
-import { setupAuth } from './auth';
 
 // Define environment types
 export interface Env {
-  KV: KVNamespace;
-  FILES: R2Bucket;
-  DB: D1Database;
-  SESSION_SECRET: string;
+  KV?: KVNamespace;
+  FILES?: R2Bucket;
+  DB?: D1Database;
+  SESSION_SECRET?: string;
   DATABASE_URL?: string;
-  ENCRYPTION_KEY: string;
-  WEBSOCKET_DO: DurableObjectNamespace;
+  ENCRYPTION_KEY?: string;
+  WEBSOCKET_DO?: DurableObjectNamespace;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -38,21 +36,32 @@ app.use('*', async (c, next) => {
   }
 });
 
-// Set up authentication
-app.use('*', setupAuth);
-
-// Set up API routes
-app.route('/api', await setupRoutes());
+// Basic API route for testing
+app.get('/api/health', (c) => {
+  return c.json({ status: 'ok', message: 'PTC Election System API is running on Cloudflare Workers' });
+});
 
 // Serve static files (React app)
 app.get('*', serveStatic({
-  root: './',
+  root: './dist/public',
   onNotFound: (path, c) => {
     // For SPA routing, serve index.html for non-API routes
     if (!path.startsWith('/api')) {
-      return c.text('<!DOCTYPE html><html><head><title>PTC Election System</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>', 200, {
-        'Content-Type': 'text/html',
-      });
+      return c.html(`
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>PTC Election System</title>
+            <link rel="stylesheet" href="/assets/index.css">
+          </head>
+          <body>
+            <div id="root"></div>
+            <script type="module" src="/assets/index.js"></script>
+          </body>
+        </html>
+      `);
     }
     return c.text('Not Found', 404);
   },

@@ -1,53 +1,44 @@
-name = "rest-express"
+name = "pp-ptc"
 compatibility_date = "2025-09-03"
-main = "dist/index.js"
+main = "workers/src/index.ts"
 
-# ─────────────────────────────
-# 🔐 Future configuration (uncomment when ready)
-# ─────────────────────────────
+# Enable Node.js compatibility (needed for some Node packages)
+compatibility_flags = ["nodejs_compat"]
 
-# # Enable Node.js compatibility (needed for some Node packages)
-# compatibility_flags = ["nodejs_compat"]
+# KV namespace for session storage and caching
+[[kv_namespaces]]
+binding = "KV"
+id = "ptc_kv_namespace"
+preview_id = "ptc_kv_preview"
 
-# # KV namespace for session storage and caching
-# [[kv_namespaces]]
-# binding = "KV"
-# id = "ptc_kv_namespace"
-# preview_id = "ptc_kv_preview"
+# R2 bucket for file uploads
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "ptc-files"
+preview_bucket_name = "ptc-files-preview"
 
-# # R2 bucket for file uploads
-# [[r2_buckets]]
-# binding = "FILES"
-# bucket_name = "ptc-files"
-# preview_bucket_name = "ptc-files-preview"
+# D1 database for SQLite
+[[d1_databases]]
+binding = "DB"
+database_name = "ptc-election-db"
+database_id = "your-d1-database-id"
 
-# # D1 database for SQLite
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "ptc-election-db"
-# database_id = "your-d1-database-id"
+# Environment variables
+[env.production.vars]
+NODE_ENV = "production"
+SESSION_SECRET = "your-session-secret-change-this"
+DATABASE_URL = "your-external-postgres-url-if-using"
+ENCRYPTION_KEY = "your-32-char-encryption-key-here"
 
-# # Environment variables
-# [env.production.vars]
-# NODE_ENV = "production"
-# SESSION_SECRET = "your-session-secret-change-this"
-# DATABASE_URL = "your-external-postgres-url-if-using"
-# ENCRYPTION_KEY = "your-32-char-encryption-key-here"
+[env.development.vars]
+NODE_ENV = "development"
+SESSION_SECRET = "dev-session-secret"
+DATABASE_URL = "postgresql://localhost:5432/ptc_election"
+ENCRYPTION_KEY = "dev-encryption-key-32chars-long"
 
-# [env.development.vars]
-# NODE_ENV = "development"
-# SESSION_SECRET = "dev-session-secret"
-# DATABASE_URL = "postgresql://localhost:5432/ptc_election"
-# ENCRYPTION_KEY = "dev-encryption-key-32chars-long"
-
-# # Static site configuration for React frontend
-# [site]
-# bucket = "./dist"
-# entry-point = "workers"
-
-# # Build configuration
+# # Build configuration - let Wrangler handle the TypeScript compilation
 # [build]
-# command = "npm run build:workers"
+# command = "npm run build"
 
 # # Durable Objects for WebSocket support
 # [[durable_objects.bindings]]
