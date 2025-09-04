@@ -1,0 +1,223 @@
+
+--- 2025-09-04T07:31:53.142Z debug
+🪵  Writing logs to "/home/runner/workspace/.config/.wrangler/logs/wrangler-2025-09-04_07-31-52_939.log"
+---
+
+--- 2025-09-04T07:31:53.142Z debug
+Metrics dispatcher: Posting data {"deviceId":"84668d4e-3003-48b8-a80a-57c084cc8e11","event":"wrangler command started","timestamp":1756971113141,"properties":{"amplitude_session_id":1756971113137,"amplitude_event_id":0,"wranglerVersion":"4.33.2","osPlatform":"Linux","osVersion":"#1-NixOS SMP PREEMPT_DYNAMIC Tue Jan  1 00:00:00 UTC 1980","nodeVersion":20,"isFirstUsage":true,"configFileType":"toml","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":false,"argsUsed":["dryRun"],"argsCombination":"dryRun","command":"wrangler deploy","args":{"dryRun":true,"noBundle":false,"latest":false,"keepVars":false,"xAutoCreate":true}}}
+---
+
+--- 2025-09-04T07:31:53.163Z debug
+.env file not found at "/home/runner/workspace/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2025-09-04T07:31:53.164Z debug
+.env file not found at "/home/runner/workspace/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2025-09-04T07:31:53.652Z log
+
+ ⛅️ wrangler 4.33.2
+───────────────────
+---
+
+--- 2025-09-04T07:31:53.734Z warn
+▲ [WARNING] Processing wrangler.toml configuration:
+
+    - Unexpected fields found in build field: "upload"
+
+
+---
+
+--- 2025-09-04T07:31:53.738Z warn
+▲ [WARNING] Multiple environments are defined in the Wrangler configuration file, but no target environment was specified for the deploy command.
+
+  To avoid unintentional changes to the wrong environment, it is recommended to
+  explicitly specify the target environment using the `-e|--env` flag.
+  If your intention is to use the top-level environment of your configuration
+  simply pass an empty string to the flag to target such environment. For
+  example `--env=""`.
+
+
+---
+
+--- 2025-09-04T07:31:53.740Z log
+[custom build] Running: npm run build
+---
+
+--- 2025-09-04T07:31:54.039Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:31:54.039Z log
+[custom build] > rest-express@1.0.0 build
+---
+
+--- 2025-09-04T07:31:54.040Z log
+[custom build] > vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+---
+
+--- 2025-09-04T07:31:54.040Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:31:54.040Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:31:54.452Z log
+[custom build] vite v6.3.5 building for production...
+---
+
+--- 2025-09-04T07:31:54.453Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:31:54.575Z log
+[custom build] transforming...
+---
+
+--- 2025-09-04T07:31:54.576Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:32:08.570Z log
+[custom build] ✓ 2888 modules transformed.
+---
+
+--- 2025-09-04T07:32:08.571Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:32:09.551Z log
+[custom build] rendering chunks...
+---
+
+--- 2025-09-04T07:32:09.551Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:32:09.582Z log
+[custom build] computing gzip size...
+---
+
+--- 2025-09-04T07:32:09.583Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:32:09.696Z log
+[custom build] ../dist/public/index.html                     1.99 kB │ gzip:   0.75 kB
+---
+
+--- 2025-09-04T07:32:09.696Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:32:09.696Z log
+[custom build] ../dist/public/assets/index-BOIFX3lv.css     71.17 kB │ gzip:  12.51 kB
+---
+
+--- 2025-09-04T07:32:09.697Z log
+[custom build] ../dist/public/assets/index-mZYcoRn4.js   1,446.43 kB │ gzip: 386.53 kB
+---
+
+--- 2025-09-04T07:32:09.697Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:32:09.697Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:32:09.698Z log
+[custom build] (!) Some chunks are larger than 500 kB after minification. Consider:
+---
+
+--- 2025-09-04T07:32:09.699Z log
+[custom build] - Using dynamic import() to code-split the application
+---
+
+--- 2025-09-04T07:32:09.699Z log
+[custom build] - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+---
+
+--- 2025-09-04T07:32:09.700Z log
+[custom build] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+---
+
+--- 2025-09-04T07:32:09.700Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:32:09.701Z log
+[custom build] ✓ built in 15.21s
+---
+
+--- 2025-09-04T07:32:09.702Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:32:10.029Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:32:10.029Z log
+[custom build]   dist/index.js  170.9kb
+---
+
+--- 2025-09-04T07:32:10.029Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:32:10.029Z log
+[custom build] ⚡ Done in 24ms
+---
+
+--- 2025-09-04T07:32:10.030Z log
+[custom build] 
+---
+
+--- 2025-09-04T07:32:10.308Z log
+Total Upload: 84.33 KiB / gzip: 20.64 KiB
+---
+
+--- 2025-09-04T07:32:10.312Z log
+Your Worker has access to the following bindings:
+---
+
+--- 2025-09-04T07:32:10.312Z log
+Binding                           Resource          
+---
+
+--- 2025-09-04T07:32:10.313Z log
+env.KV (ptc_kv_namespace)         KV Namespace      
+---
+
+--- 2025-09-04T07:32:10.313Z log
+env.DB (ptc-election-db)          D1 Database       
+---
+
+--- 2025-09-04T07:32:10.313Z log
+env.FILES (ptc-files)             R2 Bucket         
+---
+
+--- 2025-09-04T07:32:10.313Z log
+
+---
+
+--- 2025-09-04T07:32:10.316Z log
+--dry-run: exiting now.
+---
+
+--- 2025-09-04T07:32:10.317Z debug
+Metrics dispatcher: Posting data {"deviceId":"84668d4e-3003-48b8-a80a-57c084cc8e11","event":"deploy worker script","timestamp":1756971130317,"properties":{"category":"Workers","wranglerVersion":"4.33.2","os":"linux:x64","usesTypeScript":true,"durationMs":220}}
+---
+
+--- 2025-09-04T07:32:10.324Z log
+
+Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more at https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md
+---
+
+--- 2025-09-04T07:32:10.327Z debug
+Metrics dispatcher: Posting data {"deviceId":"84668d4e-3003-48b8-a80a-57c084cc8e11","event":"wrangler command completed","timestamp":1756971130327,"properties":{"amplitude_session_id":1756971113137,"amplitude_event_id":1,"wranglerVersion":"4.33.2","osPlatform":"Linux","osVersion":"#1-NixOS SMP PREEMPT_DYNAMIC Tue Jan  1 00:00:00 UTC 1980","nodeVersion":20,"isFirstUsage":false,"configFileType":"toml","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":false,"argsUsed":["dryRun"],"argsCombination":"dryRun","command":"wrangler deploy","args":{"dryRun":true,"noBundle":false,"latest":false,"keepVars":false,"xAutoCreate":true},"durationMs":17220,"durationSeconds":17.22,"durationMinutes":0.287}}
+---

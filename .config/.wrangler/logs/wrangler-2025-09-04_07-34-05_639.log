@@ -1,0 +1,94 @@
+
+--- 2025-09-04T07:34:05.874Z debug
+🪵  Writing logs to "/home/runner/workspace/.config/.wrangler/logs/wrangler-2025-09-04_07-34-05_639.log"
+---
+
+--- 2025-09-04T07:34:05.874Z debug
+Metrics dispatcher: Posting data {"deviceId":"84668d4e-3003-48b8-a80a-57c084cc8e11","event":"wrangler command started","timestamp":1756971245874,"properties":{"amplitude_session_id":1756971245870,"amplitude_event_id":0,"wranglerVersion":"4.33.2","osPlatform":"Linux","osVersion":"#1-NixOS SMP PREEMPT_DYNAMIC Tue Jan  1 00:00:00 UTC 1980","nodeVersion":20,"isFirstUsage":false,"configFileType":"toml","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":false,"argsUsed":[],"argsCombination":"","command":"wrangler types","args":{"envInterface":"<REDACTED>","includeRuntime":true,"includeEnv":true,"strictVars":true,"path":"worker-configuration.d.ts"}}}
+---
+
+--- 2025-09-04T07:34:05.890Z debug
+.env file not found at "/home/runner/workspace/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2025-09-04T07:34:05.891Z debug
+.env file not found at "/home/runner/workspace/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2025-09-04T07:34:05.943Z log
+
+ ⛅️ wrangler 4.33.2
+───────────────────
+---
+
+--- 2025-09-04T07:34:06.014Z log
+Generating project types...
+
+---
+
+--- 2025-09-04T07:34:06.017Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2025-09-04T07:34:06.017Z debug
+.env file not found at "/home/runner/workspace/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2025-09-04T07:34:06.017Z debug
+.env file not found at "/home/runner/workspace/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2025-09-04T07:34:06.019Z log
+declare namespace Cloudflare {
+	interface Env {
+		KV: KVNamespace;
+		NODE_ENV: "production" | "development";
+		SESSION_SECRET: "your-session-secret-change-this" | "dev-session-secret";
+		DATABASE_URL: "your-external-postgres-url-if-using" | "postgresql://localhost:5432/ptc_election";
+		ENCRYPTION_KEY: "your-32-char-encryption-key-here" | "dev-encryption-key-32chars-long";
+		FILES: R2Bucket;
+		DB: D1Database;
+	}
+}
+interface Env extends Cloudflare.Env {}
+type StringifyValues<EnvType extends Record<string, unknown>> = {
+	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
+};
+declare namespace NodeJS {
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "NODE_ENV" | "SESSION_SECRET" | "DATABASE_URL" | "ENCRYPTION_KEY">> {}
+}
+
+---
+
+--- 2025-09-04T07:34:06.020Z log
+Generating runtime types...
+
+---
+
+--- 2025-09-04T07:34:09.625Z log
+Runtime types generated.
+
+---
+
+--- 2025-09-04T07:34:09.625Z log
+────────────────────────────────────────────────────────────
+---
+
+--- 2025-09-04T07:34:09.629Z log
+✨ Types written to worker-configuration.d.ts
+
+---
+
+--- 2025-09-04T07:34:09.632Z log
+📖 Read about runtime types
+https://developers.cloudflare.com/workers/languages/typescript/#generate-types
+---
+
+--- 2025-09-04T07:34:09.632Z log
+📣 Remember to rerun 'wrangler types' after you change your wrangler.toml file.
+
+---
+
+--- 2025-09-04T07:34:09.634Z debug
+Metrics dispatcher: Posting data {"deviceId":"84668d4e-3003-48b8-a80a-57c084cc8e11","event":"wrangler command completed","timestamp":1756971249634,"properties":{"amplitude_session_id":1756971245870,"amplitude_event_id":1,"wranglerVersion":"4.33.2","osPlatform":"Linux","osVersion":"#1-NixOS SMP PREEMPT_DYNAMIC Tue Jan  1 00:00:00 UTC 1980","nodeVersion":20,"isFirstUsage":false,"configFileType":"toml","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":false,"argsUsed":[],"argsCombination":"","command":"wrangler types","args":{"envInterface":"<REDACTED>","includeRuntime":true,"includeEnv":true,"strictVars":true,"path":"worker-configuration.d.ts"},"durationMs":3786,"durationSeconds":3.786,"durationMinutes":0.0631}}
+---

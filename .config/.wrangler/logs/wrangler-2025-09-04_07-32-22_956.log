@@ -1,0 +1,74 @@
+
+--- 2025-09-04T07:32:23.179Z debug
+🪵  Writing logs to "/home/runner/workspace/.config/.wrangler/logs/wrangler-2025-09-04_07-32-22_956.log"
+---
+
+--- 2025-09-04T07:32:23.179Z debug
+Metrics dispatcher: Posting data {"deviceId":"84668d4e-3003-48b8-a80a-57c084cc8e11","event":"wrangler command started","timestamp":1756971143179,"properties":{"amplitude_session_id":1756971143176,"amplitude_event_id":0,"wranglerVersion":"4.33.2","osPlatform":"Linux","osVersion":"#1-NixOS SMP PREEMPT_DYNAMIC Tue Jan  1 00:00:00 UTC 1980","nodeVersion":20,"isFirstUsage":false,"configFileType":"toml","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":false,"argsUsed":["dryRun"],"argsCombination":"dryRun","command":"wrangler deploy","args":{"dryRun":true,"noBundle":false,"latest":false,"keepVars":false,"xAutoCreate":true}}}
+---
+
+--- 2025-09-04T07:32:23.195Z debug
+.env file not found at "/home/runner/workspace/.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2025-09-04T07:32:23.196Z debug
+.env file not found at "/home/runner/workspace/.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2025-09-04T07:32:23.279Z log
+
+ ⛅️ wrangler 4.33.2
+───────────────────
+---
+
+--- 2025-09-04T07:32:23.369Z warn
+▲ [WARNING] Multiple environments are defined in the Wrangler configuration file, but no target environment was specified for the deploy command.
+
+  To avoid unintentional changes to the wrong environment, it is recommended to
+  explicitly specify the target environment using the `-e|--env` flag.
+  If your intention is to use the top-level environment of your configuration
+  simply pass an empty string to the flag to target such environment. For
+  example `--env=""`.
+
+
+---
+
+--- 2025-09-04T07:32:23.602Z log
+Total Upload: 84.33 KiB / gzip: 20.64 KiB
+---
+
+--- 2025-09-04T07:32:23.605Z log
+Your Worker has access to the following bindings:
+---
+
+--- 2025-09-04T07:32:23.605Z log
+Binding                           Resource          
+---
+
+--- 2025-09-04T07:32:23.605Z log
+env.KV (ptc_kv_namespace)         KV Namespace      
+---
+
+--- 2025-09-04T07:32:23.606Z log
+env.DB (ptc-election-db)          D1 Database       
+---
+
+--- 2025-09-04T07:32:23.606Z log
+env.FILES (ptc-files)             R2 Bucket         
+---
+
+--- 2025-09-04T07:32:23.606Z log
+
+---
+
+--- 2025-09-04T07:32:23.609Z log
+--dry-run: exiting now.
+---
+
+--- 2025-09-04T07:32:23.611Z debug
+Metrics dispatcher: Posting data {"deviceId":"84668d4e-3003-48b8-a80a-57c084cc8e11","event":"deploy worker script","timestamp":1756971143611,"properties":{"category":"Workers","wranglerVersion":"4.33.2","os":"linux:x64","usesTypeScript":true,"durationMs":199}}
+---
+
+--- 2025-09-04T07:32:23.615Z debug
+Metrics dispatcher: Posting data {"deviceId":"84668d4e-3003-48b8-a80a-57c084cc8e11","event":"wrangler command completed","timestamp":1756971143615,"properties":{"amplitude_session_id":1756971143176,"amplitude_event_id":1,"wranglerVersion":"4.33.2","osPlatform":"Linux","osVersion":"#1-NixOS SMP PREEMPT_DYNAMIC Tue Jan  1 00:00:00 UTC 1980","nodeVersion":20,"isFirstUsage":false,"configFileType":"toml","isCI":false,"isPagesCI":false,"isWorkersCI":false,"isInteractive":false,"hasAssets":false,"argsUsed":["dryRun"],"argsCombination":"dryRun","command":"wrangler deploy","args":{"dryRun":true,"noBundle":false,"latest":false,"keepVars":false,"xAutoCreate":true},"durationMs":470,"durationSeconds":0.47,"durationMinutes":0.007833333333333333}}
+---
