@@ -4,13 +4,17 @@ import { serveStatic } from 'hono/cloudflare-workers';
 
 // Define environment types
 export interface Env {
+  // Cloudflare services
   KV?: KVNamespace;
   FILES?: R2Bucket;
   DB?: D1Database;
+  WEBSOCKET_DO?: DurableObjectNamespace;
+  
+  // Environment variables
   SESSION_SECRET?: string;
   DATABASE_URL?: string;
   ENCRYPTION_KEY?: string;
-  WEBSOCKET_DO?: DurableObjectNamespace;
+  NODE_ENV?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -44,24 +48,23 @@ app.get('/api/health', (c) => {
 // Serve static files (React app)
 app.get('*', serveStatic({
   root: './dist/public',
-  onNotFound: (path, c) => {
+  onNotFound: async (path, c) => {
     // For SPA routing, serve index.html for non-API routes
     if (!path.startsWith('/api')) {
-      return c.html(`
-        <!DOCTYPE html>
-        <html lang="en">
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>PTC Election System</title>
-            <link rel="stylesheet" href="/assets/index.css">
-          </head>
-          <body>
-            <div id="root"></div>
-            <script type="module" src="/assets/index.js"></script>
-          </body>
-        </html>
-      `);
+      // Serve the built index.html file for client-side routing
+      return c.html(`<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PTC Election System</title>
+    <link rel="stylesheet" href="/assets/index-BOIFX3lv.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/assets/index-mZYcoRn4.js"></script>
+  </body>
+</html>`);
     }
     return c.text('Not Found', 404);
   },
@@ -70,4 +73,5 @@ app.get('*', serveStatic({
 export default app;
 
 // Export the Durable Object class for WebSocket functionality
-export { WebSocketDurableObject } from './websocket';
+// Note: Uncomment when WebSocket functionality is needed
+// export { WebSocketDurableObject } from './websocket';

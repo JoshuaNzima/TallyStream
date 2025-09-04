@@ -36,9 +36,9 @@ compatibility_flags = ["nodejs_compat"]
 # DATABASE_URL = "postgresql://localhost:5432/ptc_election"
 # ENCRYPTION_KEY = "dev-encryption-key-32chars-long"
 
-# # Build configuration - let Wrangler handle the TypeScript compilation
-# [build]
-# command = "npm run build"
+# Build configuration - let Wrangler handle the TypeScript compilation
+[build]
+command = "npm run build"
 
 # # Durable Objects for WebSocket support
 # [[durable_objects.bindings]]

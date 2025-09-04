@@ -11,7 +11,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
-    "@cloudflare/workers-types": "^4.20250903.0",
+    "@cloudflare/workers-types": "^4.20250904.0",
     "@hono/node-server": "^1.19.1",
     "@hookform/resolvers": "^5.2.1",
     "@jridgewell/trace-mapping": "^0.3.25",
